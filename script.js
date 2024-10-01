@@ -36,7 +36,7 @@ document.addEventListener("DOMContentLoaded", function () {
 async function fetchMovieSuggestions() {
     const movieTitle = document.getElementById('movieInput').value;
     const suggestionsDiv = document.getElementById('suggestions');
-
+    suggestionsDiv.style.width='100%';
     if (movieTitle.length < 3) {
         suggestionsDiv.innerHTML = '';  // Clear suggestions for short inputs
         document.getElementById('searchButton').disabled = true;
@@ -89,6 +89,7 @@ async function getMovieRecommendations() {
 }
 
 function displaySelectedMovie(movie) {
+    document.getElementById('suggestions').style.width='0%';
     const selectedMovieDiv = document.getElementById('selectedMovie');
     selectedMovieDiv.innerHTML = `
         <div class="selected-movie-poster">
@@ -116,12 +117,25 @@ function displayRecommendations(movies) {
         recommendationsDiv.appendChild(movieDiv);
     });
 }
-
+function formatRuntime(minutes) {
+    if (minutes < 60) {
+        return `${minutes} minutes`;
+    }
+    
+    const hours = Math.floor(minutes / 60);
+    const remainingMinutes = minutes % 60;
+    
+    if (remainingMinutes === 0) {
+        return `${hours} hour${hours > 1 ? 's' : ''}`;
+    } else {
+        return `${hours} hour${hours > 1 ? 's' : ''} ${remainingMinutes} minute${remainingMinutes > 1 ? 's' : ''}`;
+    }
+}
 async function showMovieDetails(movieId) {
     const detailsUrl = `${BASE_URL}/movie/${movieId}?api_key=${API_KEY}&append_to_response=credits`;
     const detailsResponse = await fetch(detailsUrl);
     const movie = await detailsResponse.json();
-
+    const genres = movie.genres.map(genre => genre.name).join(', ');
     document.getElementById('movieTitle').innerText = movie.title;
     document.getElementById('moviePoster').src = `https://image.tmdb.org/t/p/w500${movie.poster_path}`;
     document.getElementById('releaseDate').innerText = movie.release_date;
@@ -129,7 +143,17 @@ async function showMovieDetails(movieId) {
     document.getElementById('popularity').innerText = movie.popularity;
     document.getElementById('voteAverage').innerText = movie.vote_average;
     document.getElementById('plot').innerText = movie.overview;
-
+    document.getElementById('genres').innerText = `Genres: ${genres}`;
+    const formattedRuntime = formatRuntime(movie.runtime);
+    document.getElementById('runtime').innerText = `${formattedRuntime}`;
+    const homepageLink = document.getElementById('homepageLink');
+    if (movie.homepage) {
+        homepageLink.href = movie.homepage;
+        homepageLink.style.display = 'block';  // Show the homepage link
+        homepageLink.innerText = `Visit ${movie.title} Homepage`;  // Set the link text
+    } else {
+        homepageLink.style.display = 'none';  // Hide the link if no homepage is available
+    }
     const castList = document.getElementById('castList');
     castList.innerHTML = '';  // Clear previous cast details
     movie.credits.cast.slice(0, 5).forEach(castMember => {
