@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CineMatch</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+
+</head>
+<body>
+    <div class="container">
+        <h1 id="pageTitle">CineMatch</h1>
+        <div class="autocomplete">
+            <input type="text" id="movieInput" placeholder="Enter a movie title..." oninput="fetchMovieSuggestions()" />
+            <div id="suggestions"></div>
+        </div>
+        <button id="searchButton" disabled onclick="getMovieRecommendations()">Search</button>
+        
+        <!-- Initially hidden sections -->
+        <div id="selectedMovieContainer" style="display: none;">
+            <h2>Selected Movie</h2>
+            <div id="selectedMovie" class="selected-movie"></div>
+        </div>
+
+        <div id="recommendationsContainer" style="display: none;">
+            <h2>Recommended Movies</h2>
+            <div id="recommendations"></div>
+        </div>
+    </div>
+
+    <!-- Modal for movie details -->
+    <div id="movieModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <div class="modal-body">
+                <img id="moviePoster" src="" alt="Poster">
+                <div class="movie-details">
+                    <h2 id="movieTitle"></h2>
+                    <p><strong>Plot:</strong> <span id="plot"></span></p>
+                    <p><strong>Cast:</strong></p>
+                    <ul id="castList"></ul>
+                    <p><strong>Release Date:</strong> <span id="releaseDate"></span></p>
+                    <p><strong>Vote Count:</strong> <span id="votecount"></span></p>
+                    <p><strong>Popularity:</strong> <span id="popularity"></span></p>
+                    <p><strong>Vote Average:</strong> <span id="voteAverage"></span></p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <footer>
+        <button id="modeToggle">Switch to Dark Mode</button>
+    </footer>
+    <script src="script.js"></script>
+</body>
+</html>
