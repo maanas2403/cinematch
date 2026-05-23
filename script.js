@@ -264,8 +264,8 @@ async function fetchMovieSuggestions() {
 
         const typeLabel =
             item.media_type === 'movie'
-                ? '🎬 Movie'
-                : '📺 TV Show';
+                ? '🎬'
+                : '📺';
 
         suggestionItem.innerText =
             `${title} (${year}) - ${typeLabel}`;
@@ -340,8 +340,8 @@ function displaySelectedMovie(movie) {
     // Detect type icon
     const typeLabel =
         selectedMediaType === 'tv'
-            ? '📺 TV Show'
-            : '🎬 Movie';
+            ? '📺'
+            : '🎬';
 
     selectedMovieDiv.innerHTML = `
         <div class="selected-movie-poster">
@@ -353,8 +353,7 @@ function displaySelectedMovie(movie) {
         </div>
 
         <h3>
-            ${typeLabel}<br>
-            ${title} (${year})
+            ${typeLabel} - ${title} (${year}) 
         </h3>
     `;
 
@@ -397,7 +396,7 @@ function displayRecommendations(movies) {
             >
 
             <h4>
-                 ${title} (${year}) ${typeLabel}
+                 ${typeLabel} - ${title} (${year}) 
             </h4>
         `;
 
