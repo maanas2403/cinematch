@@ -439,8 +439,13 @@ async function showMovieDetails(movieId) {
     const genres = movie.genres.map(
         genre => genre.name
     ).join(', ');
+    const mediaIcon =
+    selectedMediaType === 'tv'
+        ? '📺'
+        : '🎬';
 
-    document.getElementById('movieTitle').innerText = title;
+    document.getElementById('movieTitle').innerText = `${mediaIcon} ${title}`;
+    // document.getElementById('movieTitle').innerText = title;
 
     document.getElementById('moviePoster').src =
         `https://image.tmdb.org/t/p/w500${movie.poster_path}`;
