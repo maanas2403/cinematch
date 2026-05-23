@@ -397,7 +397,7 @@ function displayRecommendations(movies) {
             >
 
             <h4>
-                ${typeLabel} ${title} (${year})
+                 ${title} (${year}) ${typeLabel}
             </h4>
         `;
 
