@@ -268,7 +268,7 @@ async function fetchMovieSuggestions() {
                 : '📺';
 
         suggestionItem.innerText =
-            `${title} (${year}) - ${typeLabel}`;
+            `${typeLabel} ${title} (${year})`;
 
         suggestionItem.onclick = () => selectMovie(item);
 
@@ -353,7 +353,7 @@ function displaySelectedMovie(movie) {
         </div>
 
         <h3>
-            ${typeLabel} - ${title} (${year}) 
+            ${typeLabel} ${title} (${year}) 
         </h3>
     `;
 
@@ -396,7 +396,7 @@ function displayRecommendations(movies) {
             >
 
             <h4>
-                 ${typeLabel} - ${title} (${year}) 
+                 ${typeLabel} ${title} (${year}) 
             </h4>
         `;
 
