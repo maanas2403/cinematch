@@ -12,14 +12,14 @@
     <div class="container">
         <h1 id="pageTitle">CineMatch</h1>
         <div class="autocomplete">
-            <input type="text" id="movieInput" placeholder="Enter a movie title..." oninput="fetchMovieSuggestions()" />
+            <input type="text" id="movieInput" placeholder="Enter a Movie/TV Show title..." oninput="fetchMovieSuggestions()" />
             <div id="suggestions"></div>
         </div>
         <button id="searchButton" disabled onclick="getMovieRecommendations()">Search</button>
         
         <!-- Initially hidden sections -->
         <div id="selectedMovieContainer" style="display: none;">
-            <h2>Selected Movie</h2>
+            <h2>Selected Movie/TV Show</h2>
             <div id="selectedMovie" class="selected-movie"></div>
         </div>
 
