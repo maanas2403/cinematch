@@ -337,6 +337,12 @@ function displaySelectedMovie(movie) {
         ? movie.first_air_date.split('-')[0]
         : 'N/A';
 
+    // Detect type icon
+    const typeLabel =
+        selectedMediaType === 'tv'
+            ? '📺 TV Show'
+            : '🎬 Movie';
+
     selectedMovieDiv.innerHTML = `
         <div class="selected-movie-poster">
             <img 
@@ -346,7 +352,10 @@ function displaySelectedMovie(movie) {
             >
         </div>
 
-        <h3>${title} (${year})</h3>
+        <h3>
+            ${typeLabel}<br>
+            ${title} (${year})
+        </h3>
     `;
 
     document.getElementById('selectedMovieContainer').style.display = 'block';
