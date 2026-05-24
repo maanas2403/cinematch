@@ -526,201 +526,305 @@ async function getMovieRecommendations() {
         );
 
     // =========================
-    // SMART SCORING
+// SMART SCORING
+// =========================
+
+const isHindi =
+    originalLanguage === 'hi';
+
+detailedMovies.forEach(movie => {
+
+    movie.finalScore =
+        movie.sourceScore || 0;
+
+    // =========================
+    // STRICT LANGUAGE MATCH
     // =========================
 
-    detailedMovies.forEach(movie => {
+    if (
+        movie.original_language !==
+        originalLanguage
+    ) {
 
-        movie.finalScore =
-            movie.sourceScore || 0;
+        movie.finalScore -= 10000;
+    }
 
-        // =========================
-        // YEAR
-        // =========================
+    // =========================
+    // YEAR
+    // =========================
 
-        const movieYear =
-            movie.release_date
-                ? parseInt(movie.release_date.split('-')[0])
-                : movie.first_air_date
-                ? parseInt(movie.first_air_date.split('-')[0])
-                : null;
+    const movieYear =
+        movie.release_date
+            ? parseInt(movie.release_date.split('-')[0])
+            : movie.first_air_date
+            ? parseInt(movie.first_air_date.split('-')[0])
+            : null;
 
-        if (movieYear) {
+    if (movieYear) {
 
-            const diff =
-                Math.abs(
-                    selectedYear - movieYear
-                );
+        const diff =
+            Math.abs(
+                selectedYear - movieYear
+            );
+
+        // Hindi focuses strongly on era
+        if (isHindi) {
 
             if (diff === 0) {
 
-                movie.finalScore += 220;
+                movie.finalScore += 260;
 
             } else if (diff <= 2) {
 
-                movie.finalScore += 160;
+                movie.finalScore += 220;
 
             } else if (diff <= 5) {
 
+                movie.finalScore += 180;
+
+            } else if (diff <= 10) {
+
+                movie.finalScore += 120;
+
+            } else if (diff >= 20) {
+
+                movie.finalScore -= 100;
+            }
+
+        } else {
+
+            // Hollywood less dependent on year
+            if (diff === 0) {
+
                 movie.finalScore += 100;
 
-            } else if (diff >= 15) {
+            } else if (diff <= 5) {
 
-                movie.finalScore -= 80;
+                movie.finalScore += 70;
+
+            } else if (diff >= 20) {
+
+                movie.finalScore -= 40;
             }
         }
+    }
 
-        // =========================
-        // DECADE
-        // =========================
+    // =========================
+    // DECADE
+    // =========================
 
-        const movieDecade =
-            movieYear
-                ? Math.floor(movieYear / 10) * 10
-                : null;
+    const movieDecade =
+        movieYear
+            ? Math.floor(movieYear / 10) * 10
+            : null;
 
-        if (
-            movieDecade ===
-            selectedDecade
-        ) {
-
-            movie.finalScore += 220;
-        }
-
-        // =========================
-        // LANGUAGE
-        // =========================
-
-        if (
-            movie.original_language ===
-            originalLanguage
-        ) {
-
-            movie.finalScore += 250;
-        }
-
-        // =========================
-        // GENRE OVERLAP
-        // =========================
-
-        let overlap = 0;
-
-        movie.genre_ids.forEach(id => {
-
-            if (
-                selectedGenres.includes(id)
-            ) {
-
-                overlap++;
-            }
-        });
+    if (
+        movieDecade ===
+        selectedDecade
+    ) {
 
         movie.finalScore +=
-            overlap * 90;
+            isHindi
+                ? 260
+                : 90;
+    }
 
-        // =========================
-        // PERFECT GENRE BONUS
-        // =========================
+    // =========================
+    // GENRE OVERLAP
+    // =========================
 
-        if (
-            overlap >=
-            selectedGenres.length - 1
-        ) {
+    let overlap = 0;
 
-            movie.finalScore += 180;
-        }
-
-        // =========================
-        // CAST OVERLAP
-        // =========================
+    movie.genre_ids.forEach(id => {
 
         if (
-            movie.credits &&
-            movie.credits.cast &&
-            item.credits &&
-            item.credits.cast
+            selectedGenres.includes(id)
         ) {
 
-            const selectedCast =
-                item.credits.cast
-                    .slice(0, 8)
-                    .map(actor => actor.id);
-
-            const movieCast =
-                movie.credits.cast
-                    .slice(0, 8)
-                    .map(actor => actor.id);
-
-            let castOverlap = 0;
-
-            movieCast.forEach(id => {
-
-                if (
-                    selectedCast.includes(id)
-                ) {
-
-                    castOverlap++;
-                }
-            });
-
-            movie.finalScore +=
-                castOverlap * 140;
-
-            if (castOverlap >= 3) {
-
-                movie.finalScore += 250;
-            }
-        }
-
-        // =========================
-        // RATING
-        // =========================
-
-        movie.finalScore +=
-            movie.vote_average * 18;
-
-        // =========================
-        // POPULARITY
-        // =========================
-
-        movie.finalScore +=
-            movie.popularity * 0.1;
-
-        // =========================
-        // VOTE RELIABILITY
-        // =========================
-
-        movie.finalScore +=
-            Math.log10(
-                movie.vote_count + 1
-            ) * 25;
-
-        // =========================
-        // PENALIZE WEAK FILMS
-        // =========================
-
-        if (movie.vote_average < 5.5) {
-
-            movie.finalScore -= 120;
+            overlap++;
         }
     });
 
-    // =========================
-    // FINAL SORT
-    // =========================
-
-    detailedMovies.sort(
-
-        (a, b) =>
-
-            b.finalScore - a.finalScore
-    );
+    // Hollywood prioritizes genre
+    // Bollywood prioritizes cast/era
+    movie.finalScore +=
+        overlap * (
+            isHindi
+                ? 55
+                : 120
+        );
 
     // =========================
-    // DISPLAY
+    // PERFECT GENRE BONUS
     // =========================
 
-    displayRecommendations(detailedMovies);
+    if (
+        overlap >=
+        selectedGenres.length - 1
+    ) {
+
+        movie.finalScore +=
+            isHindi
+                ? 80
+                : 220;
+    }
+
+    // =========================
+    // CAST OVERLAP
+    // =========================
+
+    if (
+        movie.credits &&
+        movie.credits.cast &&
+        item.credits &&
+        item.credits.cast
+    ) {
+
+        const selectedCast =
+            item.credits.cast
+                .slice(0, 5);
+
+        const movieCast =
+            movie.credits.cast
+                .slice(0, 5);
+
+        let castScore = 0;
+
+        selectedCast.forEach(
+
+            (actor, index) => {
+
+                const exists =
+                    movieCast.some(
+                        a => a.id === actor.id
+                    );
+
+                if (exists) {
+
+                    // Lead actor importance
+                    if (index === 0) {
+
+                        castScore += 450;
+
+                    } else if (index === 1) {
+
+                        castScore += 350;
+
+                    } else if (index === 2) {
+
+                        castScore += 250;
+
+                    } else {
+
+                        castScore += 150;
+                    }
+                }
+            }
+        );
+
+        // Bollywood heavily favors cast
+        // Hollywood only moderate
+        movie.finalScore +=
+            castScore * (
+                isHindi
+                    ? 1.8
+                    : 0.8
+            );
+    }
+
+    // =========================
+    // LANGUAGE BONUS
+    // =========================
+
+    if (
+        movie.original_language ===
+        originalLanguage
+    ) {
+
+        movie.finalScore +=
+            isHindi
+                ? 320
+                : 180;
+    }
+
+    // =========================
+    // RATING
+    // =========================
+
+    movie.finalScore +=
+        movie.vote_average * (
+            isHindi
+                ? 14
+                : 20
+        );
+
+    // =========================
+    // POPULARITY
+    // =========================
+
+    // Hollywood popularity matters more
+    // Bollywood popularity less important
+    movie.finalScore +=
+        movie.popularity * (
+            isHindi
+                ? 0.05
+                : 0.15
+        );
+
+    // =========================
+    // VOTE RELIABILITY
+    // =========================
+
+    movie.finalScore +=
+        Math.log10(
+            movie.vote_count + 1
+        ) * 25;
+
+    // =========================
+    // PENALIZE WEAK FILMS
+    // =========================
+
+    if (movie.vote_average < 5.5) {
+
+        movie.finalScore -= 120;
+    }
+
+    // =========================
+    // EXTRA BOLLYWOOD BOOST
+    // SAME-ERA CAST FILMS
+    // =========================
+
+    if (isHindi) {
+
+        const sameEra =
+            movieYear &&
+            Math.abs(
+                movieYear - selectedYear
+            ) <= 10;
+
+        if (sameEra) {
+
+            movie.finalScore += 180;
+        }
+    }
+});
+
+// =========================
+// FINAL SORT
+// =========================
+
+detailedMovies.sort(
+
+    (a, b) =>
+
+        b.finalScore - a.finalScore
+);
+
+// =========================
+// DISPLAY
+// =========================
+
+displayRecommendations(detailedMovies);
 }
 
 // =========================
