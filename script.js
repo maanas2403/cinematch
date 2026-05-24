@@ -1119,8 +1119,8 @@ async function showMovieDetails(movieId) {
         "director"
     ).innerText =
         director
-            ? `Director: ${director.name}`
-            : "Director: N/A";
+            ? `${director.name}`
+            : "N/A";
     document.getElementById(
         'releaseDate'
     ).innerText =
