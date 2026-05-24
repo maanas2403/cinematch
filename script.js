@@ -237,6 +237,9 @@ async function getMovieRecommendations() {
             g => g.name === 'Animation'
         );
 
+    const isHindi =
+        originalLanguage === 'hi';
+
     // =========================
     // RECOMMENDATIONS API
     // =========================
@@ -284,7 +287,7 @@ async function getMovieRecommendations() {
                 `${BASE_URL}/discover/${selectedMediaType}?api_key=${API_KEY}`
                 + `&with_genres=${selectedGenres.join(',')}`
                 + `&with_original_language=${originalLanguage}`
-                + `&vote_count.gte=80`
+                + `&vote_count.gte=50`
                 + `&sort_by=popularity.desc`
                 + `&page=${i}`
             )
@@ -367,7 +370,9 @@ async function getMovieRecommendations() {
 
                 ...movie,
 
-                sourceScore: 500
+                sourceScore: isHindi
+                    ? 120
+                    : 500
             }))
         );
 
@@ -378,7 +383,9 @@ async function getMovieRecommendations() {
 
                 ...movie,
 
-                sourceScore: 450
+                sourceScore: isHindi
+                    ? 140
+                    : 450
             }))
         );
 
@@ -389,7 +396,9 @@ async function getMovieRecommendations() {
 
                 ...movie,
 
-                sourceScore: 250
+                sourceScore: isHindi
+                    ? 100
+                    : 250
             }))
         );
 
@@ -400,7 +409,9 @@ async function getMovieRecommendations() {
 
                 ...movie,
 
-                sourceScore: 350
+                sourceScore: isHindi
+                    ? 300
+                    : 350
             }))
         );
 
@@ -448,7 +459,7 @@ async function getMovieRecommendations() {
         }
 
         // Weak entries
-        if (movie.vote_count < 50) {
+        if (movie.vote_count < 30) {
 
             return false;
         }
@@ -491,7 +502,7 @@ async function getMovieRecommendations() {
     const detailedMovies =
         await Promise.all(
 
-            combined.slice(0, 80).map(async movie => {
+            combined.slice(0, 100).map(async movie => {
 
                 try {
 
@@ -521,9 +532,6 @@ async function getMovieRecommendations() {
     // =========================
     // SMART SCORING
     // =========================
-
-    const isHindi =
-        originalLanguage === 'hi';
 
     detailedMovies.forEach(movie => {
 
@@ -603,7 +611,7 @@ async function getMovieRecommendations() {
 
                         castOverlap++;
 
-                        // Lead actor
+                        // Lead actor only
                         if (index === 0) {
 
                             leadActorMatch = true;
@@ -619,7 +627,7 @@ async function getMovieRecommendations() {
 
         if (isHindi) {
 
-            // PRIORITY 1
+            // GROUP 1
             // SAME ERA + LEAD ACTOR
 
             if (
@@ -630,8 +638,8 @@ async function getMovieRecommendations() {
                 movie.finalScore += 5000;
             }
 
-            // PRIORITY 2
-            // SAME ERA + GENRE
+            // GROUP 2
+            // SAME ERA + SAME GENRE
 
             else if (
                 yearDifference <= 5 &&
@@ -641,8 +649,8 @@ async function getMovieRecommendations() {
                 movie.finalScore += 4000;
             }
 
-            // PRIORITY 3
-            // OUTSIDE ERA + GENRE
+            // GROUP 3
+            // OUTSIDE ERA + SAME GENRE
 
             else if (
                 yearDifference > 5 &&
@@ -652,7 +660,7 @@ async function getMovieRecommendations() {
                 movie.finalScore += 2500;
             }
 
-            // PRIORITY 4
+            // GROUP 4
             // OUTSIDE ERA + LEAD ACTOR
 
             else if (
@@ -665,29 +673,25 @@ async function getMovieRecommendations() {
 
             // Extra cast boost
             movie.finalScore +=
-                castOverlap * 250;
+                castOverlap * 200;
 
             // Extra genre boost
             movie.finalScore +=
-                overlap * 90;
+                overlap * 80;
 
-            // Year boost
+            // Same era bonus
             if (yearDifference <= 5) {
 
-                movie.finalScore += 800;
-
-            } else if (yearDifference <= 10) {
-
-                movie.finalScore += 300;
+                movie.finalScore += 700;
             }
 
-            // Different era penalty
+            // Penalize far away era
             if (yearDifference >= 20) {
 
-                movie.finalScore -= 300;
+                movie.finalScore -= 400;
             }
 
-            // Popularity less important
+            // Popularity low importance
             movie.finalScore +=
                 movie.popularity * 0.01;
         }
@@ -746,15 +750,132 @@ async function getMovieRecommendations() {
     });
 
     // =========================
-    // FINAL SORT
+    // HINDI PRIORITY SORTING
     // =========================
 
-    detailedMovies.sort(
+    if (isHindi) {
 
-        (a, b) =>
+        detailedMovies.sort((a, b) => {
 
-            b.finalScore - a.finalScore
-    );
+            const getPriority = movie => {
+
+                const movieYear =
+                    movie.release_date
+                        ? parseInt(movie.release_date.split('-')[0])
+                        : movie.first_air_date
+                        ? parseInt(movie.first_air_date.split('-')[0])
+                        : 0;
+
+                const yearDifference =
+                    Math.abs(
+                        movieYear - selectedYear
+                    );
+
+                let overlap = 0;
+
+                movie.genre_ids.forEach(id => {
+
+                    if (
+                        selectedGenres.includes(id)
+                    ) {
+
+                        overlap++;
+                    }
+                });
+
+                let leadActorMatch = false;
+
+                if (
+                    movie.credits &&
+                    movie.credits.cast &&
+                    item.credits &&
+                    item.credits.cast
+                ) {
+
+                    const selectedLead =
+                        item.credits.cast[0];
+
+                    if (selectedLead) {
+
+                        leadActorMatch =
+                            movie.credits.cast
+                                .slice(0, 5)
+                                .some(
+                                    actor =>
+                                        actor.id ===
+                                        selectedLead.id
+                                );
+                    }
+                }
+
+                // GROUP 1
+                if (
+                    yearDifference <= 5 &&
+                    leadActorMatch
+                ) {
+
+                    return 1;
+                }
+
+                // GROUP 2
+                if (
+                    yearDifference <= 5 &&
+                    overlap > 0
+                ) {
+
+                    return 2;
+                }
+
+                // GROUP 3
+                if (
+                    yearDifference > 5 &&
+                    overlap > 0
+                ) {
+
+                    return 3;
+                }
+
+                // GROUP 4
+                if (
+                    yearDifference > 5 &&
+                    leadActorMatch
+                ) {
+
+                    return 4;
+                }
+
+                return 5;
+            };
+
+            const priorityA =
+                getPriority(a);
+
+            const priorityB =
+                getPriority(b);
+
+            // PRIORITY FIRST
+            if (priorityA !== priorityB) {
+
+                return priorityA - priorityB;
+            }
+
+            // THEN SCORE
+            return (
+                b.finalScore -
+                a.finalScore
+            );
+        });
+
+    } else {
+
+        // Hollywood normal sorting
+        detailedMovies.sort(
+
+            (a, b) =>
+
+                b.finalScore - a.finalScore
+        );
+    }
 
     // =========================
     // DISPLAY
