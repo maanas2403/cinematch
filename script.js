@@ -720,40 +720,6 @@ else {
     }
 
     // =========================
-    // MODERATE CAST BOOST
-    // =========================
-
-    movie.finalScore +=
-        castOverlap * 60;
-
-    // =========================
-    // YEAR LIGHT IMPORTANCE
-    // =========================
-
-    if (yearDifference <= 5) {
-
-        movie.finalScore += 120;
-
-    } else if (yearDifference <= 10) {
-
-        movie.finalScore += 60;
-    }
-
-    // =========================
-    // QUALITY MATTERS
-    // =========================
-
-    movie.finalScore +=
-        movie.vote_average * 25;
-
-    // =========================
-    // POPULARITY MATTERS
-    // =========================
-
-    movie.finalScore +=
-        movie.popularity * 0.18;
-
-    // =========================
     // PENALIZE LOW GENRE MATCH
     // =========================
 
