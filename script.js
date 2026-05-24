@@ -200,183 +200,217 @@ async function getMovieRecommendations() {
 
     if (!selectedMovieId || !selectedMediaType) return;
 
-    // =========================
-    // FETCH SELECTED MOVIE/SHOW
-    // =========================
+  // =========================
+// FETCH SELECTED MOVIE/SHOW
+// =========================
 
-    const detailsUrl =
-        `${BASE_URL}/${selectedMediaType}/${selectedMovieId}?api_key=${API_KEY}`;
+const detailsUrl =
+    `${BASE_URL}/${selectedMediaType}/${selectedMovieId}?api_key=${API_KEY}&append_to_response=credits`;
 
-    const detailsResponse =
-        await fetch(detailsUrl);
+const detailsResponse =
+    await fetch(detailsUrl);
 
-    const item =
-        await detailsResponse.json();
+const item =
+    await detailsResponse.json();
 
-    displaySelectedMovie(item);
+displaySelectedMovie(item);
 
-    const originalLanguage =
-        item.original_language;
+const originalLanguage =
+    item.original_language;
 
-    const genreIds =
-        item.genres.map(g => g.id).join(',');
+const genreIds =
+    item.genres.map(g => g.id).join(',');
 
-    // =========================
-    // RECOMMENDATIONS API
-    // =========================
+// =========================
+// RECOMMENDATIONS API
+// =========================
 
-    const recPromises = [];
+const recPromises = [];
 
-    for (let i = 1; i <= 5; i++) {
+for (let i = 1; i <= 5; i++) {
 
-        const url =
-            `${BASE_URL}/${selectedMediaType}/${selectedMovieId}/recommendations?api_key=${API_KEY}&page=${i}`;
+    const url =
+        `${BASE_URL}/${selectedMediaType}/${selectedMovieId}/recommendations?api_key=${API_KEY}&page=${i}`;
 
-        recPromises.push(fetch(url));
-    }
+    recPromises.push(fetch(url));
+}
 
-    // =========================
-    // SIMILAR API
-    // =========================
+// =========================
+// SIMILAR API
+// =========================
 
-    const similarPromises = [];
+const similarPromises = [];
 
-    for (let i = 1; i <= 5; i++) {
+for (let i = 1; i <= 5; i++) {
 
-        const url =
-            `${BASE_URL}/${selectedMediaType}/${selectedMovieId}/similar?api_key=${API_KEY}&page=${i}`;
+    const url =
+        `${BASE_URL}/${selectedMediaType}/${selectedMovieId}/similar?api_key=${API_KEY}&page=${i}`;
 
-        similarPromises.push(fetch(url));
-    }
+    similarPromises.push(fetch(url));
+}
 
-    // =========================
-    // DISCOVER API
-    // =========================
+// =========================
+// DISCOVER API
+// =========================
 
-    const discoverPromises = [];
+const discoverPromises = [];
 
-    for (let i = 1; i <= 3; i++) {
+for (let i = 1; i <= 3; i++) {
 
-        const url =
-            `${BASE_URL}/discover/${selectedMediaType}?api_key=${API_KEY}`
-            + `&with_original_language=${originalLanguage}`
-            + `&with_genres=${genreIds}`
-            + `&vote_average.gte=6`
-            + `&vote_count.gte=100`
-            + `&sort_by=vote_average.desc`
-            + `&page=${i}`;
+    const url =
+        `${BASE_URL}/discover/${selectedMediaType}?api_key=${API_KEY}`
+        + `&with_original_language=${originalLanguage}`
+        + `&with_genres=${genreIds}`
+        + `&vote_average.gte=6`
+        + `&vote_count.gte=100`
+        + `&sort_by=vote_average.desc`
+        + `&page=${i}`;
 
-        discoverPromises.push(fetch(url));
-    }
+    discoverPromises.push(fetch(url));
+}
 
-    // =========================
-    // FETCH EVERYTHING
-    // =========================
+// =========================
+// FETCH EVERYTHING
+// =========================
 
-    const [
-        recResponses,
-        similarResponses,
-        discoverResponses
-    ] = await Promise.all([
+const [
+    recResponses,
+    similarResponses,
+    discoverResponses
+] = await Promise.all([
 
-        Promise.all(recPromises),
+    Promise.all(recPromises),
 
-        Promise.all(similarPromises),
+    Promise.all(similarPromises),
 
-        Promise.all(discoverPromises)
-    ]);
+    Promise.all(discoverPromises)
+]);
 
-    // =========================
-    // CONVERT TO JSON
-    // =========================
+// =========================
+// CONVERT TO JSON
+// =========================
 
-    const recResults =
-        await Promise.all(
-            recResponses.map(r => r.json())
-        );
-
-    const similarResults =
-        await Promise.all(
-            similarResponses.map(r => r.json())
-        );
-
-    const discoverResults =
-        await Promise.all(
-            discoverResponses.map(r => r.json())
-        );
-
-    // =========================
-    // ADD SOURCE SCORES
-    // =========================
-
-    const recMovies =
-        recResults.flatMap(r =>
-
-            r.results.map(movie => ({
-
-                ...movie,
-
-                sourceScore: 500
-            }))
-        );
-
-    const similarMovies =
-        similarResults.flatMap(r =>
-
-            r.results.map(movie => ({
-
-                ...movie,
-
-                sourceScore: 400
-            }))
-        );
-
-    const discoverMovies =
-        discoverResults.flatMap(r =>
-
-            r.results.map(movie => ({
-
-                ...movie,
-
-                sourceScore: 50
-            }))
-        );
-
-    // =========================
-    // COMBINE RESULTS
-    // =========================
-
-    let combined = [
-
-        ...recMovies,
-
-        ...similarMovies
-    ];
-
-    // Fallback discover
-    if (combined.length < 40) {
-
-        combined.push(...discoverMovies);
-    }
-
-    // =========================
-    // REMOVE DUPLICATES
-    // =========================
-
-    combined = combined.filter(
-
-        (movie, index, self) =>
-
-            index === self.findIndex(
-                m => m.id === movie.id
-            )
+const recResults =
+    await Promise.all(
+        recResponses.map(r => r.json())
     );
 
-    // =========================
-    // SMART SCORING
-    // =========================
+const similarResults =
+    await Promise.all(
+        similarResponses.map(r => r.json())
+    );
 
-combined.forEach(movie => {
+const discoverResults =
+    await Promise.all(
+        discoverResponses.map(r => r.json())
+    );
+
+// =========================
+// ADD SOURCE SCORES
+// =========================
+
+const recMovies =
+    recResults.flatMap(r =>
+
+        r.results.map(movie => ({
+
+            ...movie,
+
+            sourceScore: 500
+        }))
+    );
+
+const similarMovies =
+    similarResults.flatMap(r =>
+
+        r.results.map(movie => ({
+
+            ...movie,
+
+            sourceScore: 400
+        }))
+    );
+
+const discoverMovies =
+    discoverResults.flatMap(r =>
+
+        r.results.map(movie => ({
+
+            ...movie,
+
+            sourceScore: 50
+        }))
+    );
+
+// =========================
+// COMBINE RESULTS
+// =========================
+
+let combined = [
+
+    ...recMovies,
+
+    ...similarMovies
+];
+
+// Fallback discover
+if (combined.length < 40) {
+
+    combined.push(...discoverMovies);
+}
+
+// =========================
+// REMOVE DUPLICATES
+// =========================
+
+combined = combined.filter(
+
+    (movie, index, self) =>
+
+        index === self.findIndex(
+            m => m.id === movie.id
+        )
+);
+
+// =========================
+// FETCH DETAILS + CREDITS
+// =========================
+
+const detailedMovies =
+    await Promise.all(
+
+        combined.slice(0, 50).map(async movie => {
+
+            try {
+
+                const detailsFetch =
+                    await fetch(
+
+                        `${BASE_URL}/${selectedMediaType}/${movie.id}?api_key=${API_KEY}&append_to_response=credits`
+                    );
+
+                const details =
+                    await detailsFetch.json();
+
+                return {
+
+                    ...movie,
+
+                    credits: details.credits
+                };
+
+            } catch {
+
+                return movie;
+            }
+        })
+    );
+
+// =========================
+// SMART SCORING
+// =========================
+
+detailedMovies.forEach(movie => {
 
     movie.finalScore =
         movie.sourceScore || 0;
@@ -404,22 +438,18 @@ combined.forEach(movie => {
         const yearDifference =
             Math.abs(selectedYear - movieYear);
 
-        // Same year
         if (yearDifference === 0) {
 
             movie.finalScore += 180;
 
-        // Within 2 years
         } else if (yearDifference <= 2) {
 
             movie.finalScore += 120;
 
-        // Within 5 years
         } else if (yearDifference <= 5) {
 
             movie.finalScore += 70;
 
-        // Penalize very far years
         } else if (yearDifference >= 15) {
 
             movie.finalScore -= 60;
@@ -465,7 +495,7 @@ combined.forEach(movie => {
     // GENRE OVERLAP BOOST
     // =========================
 
-    let overlap = 0;
+    let genreOverlap = 0;
 
     movie.genre_ids.forEach(id => {
 
@@ -475,12 +505,66 @@ combined.forEach(movie => {
             )
         ) {
 
-            overlap++;
+            genreOverlap++;
         }
     });
 
+    // Stronger genre weighting
     movie.finalScore +=
-        overlap * 50;
+        genreOverlap * 80;
+
+    // Perfect genre match bonus
+    if (
+        genreOverlap >=
+        item.genres.length - 1
+    ) {
+
+        movie.finalScore += 150;
+    }
+
+    // =========================
+    // CAST MATCHING BOOST
+    // =========================
+
+    if (
+        movie.credits &&
+        movie.credits.cast &&
+        item.credits &&
+        item.credits.cast
+    ) {
+
+        const selectedCast =
+            item.credits.cast
+                .slice(0, 8)
+                .map(actor => actor.id);
+
+        const recommendationCast =
+            movie.credits.cast
+                .slice(0, 8)
+                .map(actor => actor.id);
+
+        let castOverlap = 0;
+
+        recommendationCast.forEach(actorId => {
+
+            if (
+                selectedCast.includes(actorId)
+            ) {
+
+                castOverlap++;
+            }
+        });
+
+        // Huge boost for shared actors
+        movie.finalScore +=
+            castOverlap * 120;
+
+        // Extra bonus
+        if (castOverlap >= 3) {
+
+            movie.finalScore += 200;
+        }
+    }
 
     // =========================
     // PENALIZE WEAK MOVIES
@@ -491,22 +575,23 @@ combined.forEach(movie => {
         movie.finalScore -= 100;
     }
 });
-    // =========================
-    // SORT BY SCORE
-    // =========================
 
-    combined.sort(
+// =========================
+// SORT BY SCORE
+// =========================
 
-        (a, b) =>
+detailedMovies.sort(
 
-            b.finalScore - a.finalScore
-    );
+    (a, b) =>
 
-    // =========================
-    // DISPLAY RESULTS
-    // =========================
+        b.finalScore - a.finalScore
+);
 
-    displayRecommendations(combined);
+// =========================
+// DISPLAY RESULTS
+// =========================
+
+displayRecommendations(detailedMovies);
 }
 
 // =========================
