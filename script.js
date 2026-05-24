@@ -1150,8 +1150,22 @@ if (
                 )
                 .join(", ");
 
+        // TMDB watch link
+        const watchLink =
+            providers.link;
+
         ottProviders.innerHTML =
-            `<strong>Available On:</strong> ${providerNames}`;
+            `
+            <strong>Available On:</strong>
+            ${providerNames}
+            <br>
+            <a
+                href="${watchLink}"
+                target="_blank"
+            >
+                Watch Here
+            </a>
+            `;
 
     } else {
 
