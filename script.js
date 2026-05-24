@@ -200,7 +200,7 @@ async function getMovieRecommendations() {
 
     if (!selectedMovieId || !selectedMediaType) return;
 
-  // =========================
+ // =========================
 // FETCH SELECTED MOVIE/SHOW
 // =========================
 
@@ -217,9 +217,6 @@ displaySelectedMovie(item);
 
 const originalLanguage =
     item.original_language;
-
-const genreIds =
-    item.genres.map(g => g.id).join(',');
 
 // =========================
 // RECOMMENDATIONS API
@@ -250,40 +247,17 @@ for (let i = 1; i <= 5; i++) {
 }
 
 // =========================
-// DISCOVER API
-// =========================
-
-const discoverPromises = [];
-
-for (let i = 1; i <= 3; i++) {
-
-    const url =
-        `${BASE_URL}/discover/${selectedMediaType}?api_key=${API_KEY}`
-        + `&with_original_language=${originalLanguage}`
-        + `&with_genres=${genreIds}`
-        + `&vote_average.gte=6`
-        + `&vote_count.gte=100`
-        + `&sort_by=vote_average.desc`
-        + `&page=${i}`;
-
-    discoverPromises.push(fetch(url));
-}
-
-// =========================
 // FETCH EVERYTHING
 // =========================
 
 const [
     recResponses,
-    similarResponses,
-    discoverResponses
+    similarResponses
 ] = await Promise.all([
 
     Promise.all(recPromises),
 
-    Promise.all(similarPromises),
-
-    Promise.all(discoverPromises)
+    Promise.all(similarPromises)
 ]);
 
 // =========================
@@ -298,11 +272,6 @@ const recResults =
 const similarResults =
     await Promise.all(
         similarResponses.map(r => r.json())
-    );
-
-const discoverResults =
-    await Promise.all(
-        discoverResponses.map(r => r.json())
     );
 
 // =========================
@@ -331,17 +300,6 @@ const similarMovies =
         }))
     );
 
-const discoverMovies =
-    discoverResults.flatMap(r =>
-
-        r.results.map(movie => ({
-
-            ...movie,
-
-            sourceScore: 50
-        }))
-    );
-
 // =========================
 // COMBINE RESULTS
 // =========================
@@ -352,12 +310,6 @@ let combined = [
 
     ...similarMovies
 ];
-
-// Fallback discover
-if (combined.length < 40) {
-
-    combined.push(...discoverMovies);
-}
 
 // =========================
 // REMOVE DUPLICATES
@@ -509,7 +461,6 @@ detailedMovies.forEach(movie => {
         }
     });
 
-    // Stronger genre weighting
     movie.finalScore +=
         genreOverlap * 80;
 
@@ -555,11 +506,9 @@ detailedMovies.forEach(movie => {
             }
         });
 
-        // Huge boost for shared actors
         movie.finalScore +=
             castOverlap * 120;
 
-        // Extra bonus
         if (castOverlap >= 3) {
 
             movie.finalScore += 200;
