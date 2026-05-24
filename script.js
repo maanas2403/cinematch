@@ -1029,7 +1029,7 @@ function formatRuntime(minutes) {
 async function showMovieDetails(movieId) {
 
     const detailsUrl =
-        `${BASE_URL}/${selectedMediaType}/${movieId}?api_key=${API_KEY}&append_to_response=credits`;
+    `${BASE_URL}/${selectedMediaType}/${movieId}?api_key=${API_KEY}&append_to_response=credits,watch/providers`;
 
     const detailsResponse =
         await fetch(detailsUrl);
@@ -1111,7 +1111,59 @@ async function showMovieDetails(movieId) {
         'runtime'
     ).innerText =
         runtimeText;
+    // =========================
+// OTT PROVIDERS
+// =========================
 
+const ottProviders =
+    document.getElementById(
+        'ottProviders'
+    );
+
+const providerData =
+    movie["watch/providers"];
+
+if (
+    providerData &&
+    providerData.results
+) {
+
+    const indiaProviders =
+        providerData.results.IN;
+
+    const usProviders =
+        providerData.results.US;
+
+    const providers =
+        indiaProviders || usProviders;
+
+    if (
+        providers &&
+        providers.flatrate
+    ) {
+
+        const providerNames =
+            providers.flatrate
+                .slice(0, 5)
+                .map(
+                    p => p.provider_name
+                )
+                .join(", ");
+
+        ottProviders.innerHTML =
+            `<strong>Available On:</strong> ${providerNames}`;
+
+    } else {
+
+        ottProviders.innerHTML =
+            `<strong>Available On:</strong> Not Available`;
+    }
+
+} else {
+
+    ottProviders.innerHTML =
+        `<strong>Available On:</strong> Not Available`;
+}
     const homepageLink =
         document.getElementById(
             'homepageLink'
