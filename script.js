@@ -696,33 +696,72 @@ async function getMovieRecommendations() {
                 movie.popularity * 0.01;
         }
 
-        // =========================
-        // HOLLYWOOD / OTHERS
-        // =========================
+       // =========================
+// HOLLYWOOD / NON-HINDI
+// =========================
 
-        else {
+else {
 
-            // Genre focused
-            movie.finalScore +=
-                overlap * 120;
+    // =========================
+    // HEAVY GENRE PRIORITY
+    // =========================
 
-            // Cast moderate
-            movie.finalScore +=
-                castOverlap * 80;
+    movie.finalScore +=
+        overlap * 220;
 
-            // Year moderate
-            if (yearDifference <= 5) {
+    // Perfect genre match
 
-                movie.finalScore += 120;
-            }
+    if (
+        overlap >=
+        selectedGenres.length - 1
+    ) {
 
-            movie.finalScore +=
-                movie.vote_average * 20;
+        movie.finalScore += 500;
+    }
 
-            movie.finalScore +=
-                movie.popularity * 0.15;
-        }
+    // =========================
+    // MODERATE CAST BOOST
+    // =========================
 
+    movie.finalScore +=
+        castOverlap * 60;
+
+    // =========================
+    // YEAR LIGHT IMPORTANCE
+    // =========================
+
+    if (yearDifference <= 5) {
+
+        movie.finalScore += 120;
+
+    } else if (yearDifference <= 10) {
+
+        movie.finalScore += 60;
+    }
+
+    // =========================
+    // QUALITY MATTERS
+    // =========================
+
+    movie.finalScore +=
+        movie.vote_average * 25;
+
+    // =========================
+    // POPULARITY MATTERS
+    // =========================
+
+    movie.finalScore +=
+        movie.popularity * 0.18;
+
+    // =========================
+    // PENALIZE LOW GENRE MATCH
+    // =========================
+
+    if (overlap === 0) {
+
+        movie.finalScore -= 300;
+    }
+}
         // =========================
         // GLOBAL RATING
         // =========================
