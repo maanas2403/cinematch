@@ -1104,7 +1104,23 @@ async function showMovieDetails(movieId) {
         'moviePoster'
     ).src =
         `https://image.tmdb.org/t/p/w500${movie.poster_path}`;
+    // =========================
+// DIRECTOR
+// =========================
 
+    const director =
+        movie.credits.crew.find(
+    
+            person =>
+                person.job === "Director"
+        );
+    
+    document.getElementById(
+        "director"
+    ).innerText =
+        director
+            ? `Director: ${director.name}`
+            : "Director: N/A";
     document.getElementById(
         'releaseDate'
     ).innerText =
