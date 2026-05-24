@@ -232,15 +232,6 @@ async function getMovieRecommendations() {
             ? parseInt(item.first_air_date.split('-')[0])
             : 2000;
 
-    const selectedDecade =
-        Math.floor(selectedYear / 10) * 10;
-
-    const decadeStart =
-        selectedDecade - 5;
-
-    const decadeEnd =
-        selectedDecade + 5;
-
     const selectedIsAnimation =
         item.genres.some(
             g => g.name === 'Animation'
@@ -279,7 +270,7 @@ async function getMovieRecommendations() {
     }
 
     // =========================
-    // SAME-DECADE + SAME-GENRE
+    // SAME GENRE DISCOVER
     // =========================
 
     const discoverPromises = [];
@@ -293,16 +284,9 @@ async function getMovieRecommendations() {
                 `${BASE_URL}/discover/${selectedMediaType}?api_key=${API_KEY}`
                 + `&with_genres=${selectedGenres.join(',')}`
                 + `&with_original_language=${originalLanguage}`
-                + `&vote_count.gte=100`
+                + `&vote_count.gte=80`
                 + `&sort_by=popularity.desc`
                 + `&page=${i}`
-                + (
-                    selectedMediaType === 'movie'
-                        ? `&primary_release_date.gte=${decadeStart}-01-01`
-                        + `&primary_release_date.lte=${decadeEnd}-12-31`
-                        : `&first_air_date.gte=${decadeStart}-01-01`
-                        + `&first_air_date.lte=${decadeEnd}-12-31`
-                )
             )
         );
     }
@@ -394,7 +378,7 @@ async function getMovieRecommendations() {
 
                 ...movie,
 
-                sourceScore: 420
+                sourceScore: 450
             }))
         );
 
@@ -405,7 +389,7 @@ async function getMovieRecommendations() {
 
                 ...movie,
 
-                sourceScore: 320
+                sourceScore: 250
             }))
         );
 
@@ -416,7 +400,7 @@ async function getMovieRecommendations() {
 
                 ...movie,
 
-                sourceScore: 260
+                sourceScore: 350
             }))
         );
 
@@ -457,25 +441,34 @@ async function getMovieRecommendations() {
             return false;
         }
 
-        // Remove missing posters
+        // Missing posters
         if (!movie.poster_path) {
 
             return false;
         }
 
-        // Remove weak entries
-        if (movie.vote_count < 100) {
+        // Weak entries
+        if (movie.vote_count < 50) {
 
             return false;
         }
 
-        // Remove adult
+        // Adult titles
         if (movie.adult) {
 
             return false;
         }
 
-        // Remove animation mismatch
+        // STRICT LANGUAGE FILTER
+        if (
+            movie.original_language !==
+            originalLanguage
+        ) {
+
+            return false;
+        }
+
+        // Animation mismatch
         const movieIsAnimation =
             movie.genre_ids &&
             movie.genre_ids.includes(16);
@@ -498,7 +491,7 @@ async function getMovieRecommendations() {
     const detailedMovies =
         await Promise.all(
 
-            combined.slice(0, 70).map(async movie => {
+            combined.slice(0, 80).map(async movie => {
 
                 try {
 
@@ -525,338 +518,250 @@ async function getMovieRecommendations() {
             })
         );
 
-   // =========================
-// SMART SCORING
-// =========================
-
-const isHindi =
-    originalLanguage === 'hi';
-
-detailedMovies.forEach(movie => {
-
-    movie.finalScore =
-        movie.sourceScore || 0;
-
     // =========================
-    // STRICT LANGUAGE MATCH
+    // SMART SCORING
     // =========================
 
-    if (
-        movie.original_language !==
-        originalLanguage
-    ) {
+    const isHindi =
+        originalLanguage === 'hi';
 
-        movie.finalScore -= 10000;
-    }
+    detailedMovies.forEach(movie => {
 
-    // =========================
-    // YEAR
-    // =========================
+        movie.finalScore =
+            movie.sourceScore || 0;
 
-    const movieYear =
-        movie.release_date
-            ? parseInt(movie.release_date.split('-')[0])
-            : movie.first_air_date
-            ? parseInt(movie.first_air_date.split('-')[0])
-            : null;
+        // =========================
+        // YEAR
+        // =========================
 
-    if (movieYear) {
+        const movieYear =
+            movie.release_date
+                ? parseInt(movie.release_date.split('-')[0])
+                : movie.first_air_date
+                ? parseInt(movie.first_air_date.split('-')[0])
+                : null;
 
-        const diff =
-            Math.abs(
-                selectedYear - movieYear
-            );
+        const yearDifference =
+            movieYear
+                ? Math.abs(
+                    movieYear - selectedYear
+                )
+                : 999;
 
-        // Hindi strongly era-based
-        if (isHindi) {
+        // =========================
+        // GENRE OVERLAP
+        // =========================
 
-            if (diff === 0) {
+        let overlap = 0;
 
-                movie.finalScore += 260;
+        movie.genre_ids.forEach(id => {
 
-            } else if (diff <= 2) {
+            if (
+                selectedGenres.includes(id)
+            ) {
 
-                movie.finalScore += 220;
-
-            } else if (diff <= 5) {
-
-                movie.finalScore += 180;
-
-            } else if (diff <= 10) {
-
-                movie.finalScore += 120;
-
-            } else if (diff >= 20) {
-
-                movie.finalScore -= 140;
+                overlap++;
             }
+        });
 
-        } else {
+        const hasGenreMatch =
+            overlap > 0;
 
-            // Hollywood less year dependent
-            if (diff === 0) {
+        // =========================
+        // CAST OVERLAP
+        // =========================
 
-                movie.finalScore += 100;
+        let castOverlap = 0;
 
-            } else if (diff <= 5) {
-
-                movie.finalScore += 70;
-
-            } else if (diff >= 20) {
-
-                movie.finalScore -= 40;
-            }
-        }
-    }
-
-    // =========================
-    // DECADE
-    // =========================
-
-    const movieDecade =
-        movieYear
-            ? Math.floor(movieYear / 10) * 10
-            : null;
-
-    if (
-        movieDecade ===
-        selectedDecade
-    ) {
-
-        movie.finalScore +=
-            isHindi
-                ? 260
-                : 90;
-    }
-
-    // =========================
-    // GENRE OVERLAP
-    // =========================
-
-    let overlap = 0;
-
-    movie.genre_ids.forEach(id => {
+        let leadActorMatch = false;
 
         if (
-            selectedGenres.includes(id)
+            movie.credits &&
+            movie.credits.cast &&
+            item.credits &&
+            item.credits.cast
         ) {
 
-            overlap++;
+            const selectedCast =
+                item.credits.cast
+                    .slice(0, 5);
+
+            const movieCast =
+                movie.credits.cast
+                    .slice(0, 5);
+
+            selectedCast.forEach(
+
+                (actor, index) => {
+
+                    const exists =
+                        movieCast.some(
+                            a => a.id === actor.id
+                        );
+
+                    if (exists) {
+
+                        castOverlap++;
+
+                        // Lead actor
+                        if (index === 0) {
+
+                            leadActorMatch = true;
+                        }
+                    }
+                }
+            );
+        }
+
+        // =========================
+        // HINDI LOGIC
+        // =========================
+
+        if (isHindi) {
+
+            // PRIORITY 1
+            // SAME ERA + LEAD ACTOR
+
+            if (
+                yearDifference <= 5 &&
+                leadActorMatch
+            ) {
+
+                movie.finalScore += 5000;
+            }
+
+            // PRIORITY 2
+            // SAME ERA + GENRE
+
+            else if (
+                yearDifference <= 5 &&
+                hasGenreMatch
+            ) {
+
+                movie.finalScore += 4000;
+            }
+
+            // PRIORITY 3
+            // OUTSIDE ERA + GENRE
+
+            else if (
+                yearDifference > 5 &&
+                hasGenreMatch
+            ) {
+
+                movie.finalScore += 2500;
+            }
+
+            // PRIORITY 4
+            // OUTSIDE ERA + LEAD ACTOR
+
+            else if (
+                yearDifference > 5 &&
+                leadActorMatch
+            ) {
+
+                movie.finalScore += 1200;
+            }
+
+            // Extra cast boost
+            movie.finalScore +=
+                castOverlap * 250;
+
+            // Extra genre boost
+            movie.finalScore +=
+                overlap * 90;
+
+            // Year boost
+            if (yearDifference <= 5) {
+
+                movie.finalScore += 800;
+
+            } else if (yearDifference <= 10) {
+
+                movie.finalScore += 300;
+            }
+
+            // Different era penalty
+            if (yearDifference >= 20) {
+
+                movie.finalScore -= 300;
+            }
+
+            // Popularity less important
+            movie.finalScore +=
+                movie.popularity * 0.01;
+        }
+
+        // =========================
+        // HOLLYWOOD / OTHERS
+        // =========================
+
+        else {
+
+            // Genre focused
+            movie.finalScore +=
+                overlap * 120;
+
+            // Cast moderate
+            movie.finalScore +=
+                castOverlap * 80;
+
+            // Year moderate
+            if (yearDifference <= 5) {
+
+                movie.finalScore += 120;
+            }
+
+            movie.finalScore +=
+                movie.vote_average * 20;
+
+            movie.finalScore +=
+                movie.popularity * 0.15;
+        }
+
+        // =========================
+        // GLOBAL RATING
+        // =========================
+
+        movie.finalScore +=
+            movie.vote_average * 15;
+
+        // =========================
+        // VOTE RELIABILITY
+        // =========================
+
+        movie.finalScore +=
+            Math.log10(
+                movie.vote_count + 1
+            ) * 25;
+
+        // =========================
+        // PENALIZE WEAK FILMS
+        // =========================
+
+        if (movie.vote_average < 5.5) {
+
+            movie.finalScore -= 120;
         }
     });
 
-    // Hollywood prioritizes genre
-    // Bollywood prioritizes cast/era
-    movie.finalScore +=
-        overlap * (
-            isHindi
-                ? 55
-                : 120
-        );
-
     // =========================
-    // PERFECT GENRE BONUS
+    // FINAL SORT
     // =========================
 
-    if (
-        overlap >=
-        selectedGenres.length - 1
-    ) {
+    detailedMovies.sort(
 
-        movie.finalScore +=
-            isHindi
-                ? 80
-                : 220;
-    }
+        (a, b) =>
+
+            b.finalScore - a.finalScore
+    );
 
     // =========================
-    // CAST OVERLAP
+    // DISPLAY
     // =========================
 
-    if (
-        movie.credits &&
-        movie.credits.cast &&
-        item.credits &&
-        item.credits.cast
-    ) {
-
-        const selectedCast =
-            item.credits.cast
-                .slice(0, 5);
-
-        const movieCast =
-            movie.credits.cast
-                .slice(0, 5);
-
-        let castScore = 0;
-
-        selectedCast.forEach(
-
-            (actor, index) => {
-
-                const exists =
-                    movieCast.some(
-                        a => a.id === actor.id
-                    );
-
-                if (exists) {
-
-                    // Lead actor weighting
-                    if (index === 0) {
-
-                        castScore += 450;
-
-                    } else if (index === 1) {
-
-                        castScore += 350;
-
-                    } else if (index === 2) {
-
-                        castScore += 250;
-
-                    } else {
-
-                        castScore += 150;
-                    }
-                }
-            }
-        );
-
-        // =========================
-        // SAME-ERA BOOST
-        // =========================
-
-        if (isHindi && movieYear) {
-
-            const eraDifference =
-                Math.abs(
-                    movieYear - selectedYear
-                );
-
-            // Same era = massive boost
-            if (eraDifference <= 5) {
-
-                castScore *= 3.0;
-
-            } else if (eraDifference <= 10) {
-
-                castScore *= 2.0;
-
-            } else if (eraDifference <= 15) {
-
-                castScore *= 1.0;
-
-            // Different era penalty
-            } else {
-
-                castScore *= 0.2;
-            }
-        }
-
-        // Bollywood heavily favors cast
-        // Hollywood moderate cast focus
-        movie.finalScore +=
-            castScore * (
-                isHindi
-                    ? 1.8
-                    : 0.8
-            );
-    }
-
-    // =========================
-    // LANGUAGE BONUS
-    // =========================
-
-    if (
-        movie.original_language ===
-        originalLanguage
-    ) {
-
-        movie.finalScore +=
-            isHindi
-                ? 320
-                : 180;
-    }
-
-    // =========================
-    // RATING
-    // =========================
-
-    movie.finalScore +=
-        movie.vote_average * (
-            isHindi
-                ? 14
-                : 20
-        );
-
-    // =========================
-    // POPULARITY
-    // =========================
-
-    // Bollywood popularity is unreliable
-    // because modern films dominate TMDB
-
-    movie.finalScore +=
-        movie.popularity * (
-            isHindi
-                ? 0.015
-                : 0.15
-        );
-
-    // =========================
-    // VOTE RELIABILITY
-    // =========================
-
-    movie.finalScore +=
-        Math.log10(
-            movie.vote_count + 1
-        ) * 25;
-
-    // =========================
-    // PENALIZE WEAK FILMS
-    // =========================
-
-    if (movie.vote_average < 5.5) {
-
-        movie.finalScore -= 120;
-    }
-
-    // =========================
-    // EXTRA HINDI SAME-ERA BOOST
-    // =========================
-
-    if (isHindi && movieYear) {
-
-        const sameEra =
-            Math.abs(
-                movieYear - selectedYear
-            ) <= 10;
-
-        if (sameEra) {
-
-            movie.finalScore += 220;
-        }
-    }
-});
-
-// =========================
-// FINAL SORT
-// =========================
-
-detailedMovies.sort(
-
-    (a, b) =>
-
-        b.finalScore - a.finalScore
-);
-
-// =========================
-// DISPLAY
-// =========================
-
-displayRecommendations(detailedMovies);
+    displayRecommendations(detailedMovies);
 }
-
 // =========================
 // DISPLAY SELECTED MOVIE
 // =========================
