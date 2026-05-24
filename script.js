@@ -298,11 +298,11 @@ function selectMovie(item) {
     document.getElementById('searchButton').disabled = false;
 }
 
-// Get recommendations
 async function getMovieRecommendations() {
 
     if (!selectedMovieId || !selectedMediaType) return;
 
+    // Get selected movie/show details
     const detailsUrl =
         `${BASE_URL}/${selectedMediaType}/${selectedMovieId}?api_key=${API_KEY}`;
 
@@ -312,6 +312,10 @@ async function getMovieRecommendations() {
 
     displaySelectedMovie(item);
 
+    // Get original language
+    const originalLanguage = item.original_language;
+
+    // Fetch recommendations
     const recommendationsUrl =
         `${BASE_URL}/${selectedMediaType}/${selectedMovieId}/recommendations?api_key=${API_KEY}`;
 
@@ -319,8 +323,16 @@ async function getMovieRecommendations() {
 
     const recommendationsData = await recommendationsResponse.json();
 
-    displayRecommendations(recommendationsData.results);
+    // Filter same-language recommendations
+    const filteredRecommendations =
+        recommendationsData.results.filter(rec =>
+            rec.original_language === originalLanguage
+        );
+
+    displayRecommendations(filteredRecommendations);
 }
+
+
 
 // Display selected item
 function displaySelectedMovie(movie) {
