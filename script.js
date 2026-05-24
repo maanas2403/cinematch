@@ -9,64 +9,104 @@ let selectedMediaType = null;
 // =========================
 // DARK / LIGHT MODE
 // =========================
+// =========================
+// DARK / LIGHT MODE
+// =========================
 
-document.addEventListener("DOMContentLoaded", function () {
+document.addEventListener(
+    "DOMContentLoaded",
+    function () {
 
-    const modeToggle =
-        document.getElementById("modeToggle");
-
-    const body = document.body;
-
-    const isDarkMode =
-        localStorage.getItem("dark-mode") === "true";
-
-    if (isDarkMode) {
-
-        body.classList.add("dark-mode");
-
-        modeToggle.textContent =
-            "Switch to Light Mode";
-
-    } else {
-
-        body.classList.add("light-mode");
-
-        modeToggle.textContent =
-            "Switch to Dark Mode";
-    }
-
-    modeToggle.addEventListener("click", function () {
-
-        if (body.classList.contains("dark-mode")) {
-
-            body.classList.remove("dark-mode");
-
-            body.classList.add("light-mode");
-
-            modeToggle.textContent =
-                "Switch to Dark Mode";
-
-            localStorage.setItem(
-                "dark-mode",
-                "false"
+        const modeToggle =
+            document.getElementById(
+                "modeToggle"
             );
+
+        const body =
+            document.body;
+
+        const isDarkMode =
+            localStorage.getItem(
+                "dark-mode"
+            ) === "true";
+
+        // =========================
+        // INITIAL MODE
+        // =========================
+
+        if (isDarkMode) {
+
+            body.classList.add(
+                "dark-mode"
+            );
+
+            modeToggle.innerHTML =
+                "☀️";
 
         } else {
 
-            body.classList.remove("light-mode");
-
-            body.classList.add("dark-mode");
-
-            modeToggle.textContent =
-                "Switch to Light Mode";
-
-            localStorage.setItem(
-                "dark-mode",
-                "true"
+            body.classList.add(
+                "light-mode"
             );
+
+            modeToggle.innerHTML =
+                "🌙";
         }
-    });
-});
+
+        // =========================
+        // TOGGLE
+        // =========================
+
+        modeToggle.addEventListener(
+            "click",
+            function () {
+
+                if (
+                    body.classList.contains(
+                        "dark-mode"
+                    )
+                ) {
+
+                    body.classList.remove(
+                        "dark-mode"
+                    );
+
+                    body.classList.add(
+                        "light-mode"
+                    );
+
+                    // Show moon
+                    modeToggle.innerHTML =
+                        "🌙";
+
+                    localStorage.setItem(
+                        "dark-mode",
+                        "false"
+                    );
+
+                } else {
+
+                    body.classList.remove(
+                        "light-mode"
+                    );
+
+                    body.classList.add(
+                        "dark-mode"
+                    );
+
+                    // Show sun
+                    modeToggle.innerHTML =
+                        "☀️";
+
+                    localStorage.setItem(
+                        "dark-mode",
+                        "true"
+                    );
+                }
+            }
+        );
+    }
+);
 
 // =========================
 // FETCH SUGGESTIONS
