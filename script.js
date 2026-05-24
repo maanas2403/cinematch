@@ -1129,7 +1129,7 @@ async function showMovieDetails(movieId) {
     document.getElementById(
         'genres'
     ).innerText =
-        `Genres: ${genres}`;
+        `${genres}`;
 
     let runtimeText = 'N/A';
 
