@@ -388,44 +388,158 @@ async function getMovieRecommendations() {
         );
 
     const discoverResults =
+
+async function getMovieRecommendations() {
+
+    if (!selectedMovieId || !selectedMediaType) return;
+
+    // =========================
+    // FETCH SELECTED MOVIE/SHOW
+    // =========================
+    const detailsUrl =
+        `${BASE_URL}/${selectedMediaType}/${selectedMovieId}?api_key=${API_KEY}`;
+
+    const detailsResponse = await fetch(detailsUrl);
+
+    const item = await detailsResponse.json();
+
+    displaySelectedMovie(item);
+
+    const originalLanguage = item.original_language;
+
+    const genreIds =
+        item.genres.map(g => g.id).join(',');
+
+    // =========================
+    // FETCH RECOMMENDATIONS
+    // =========================
+
+    // Recommendations API
+    const recPromises = [];
+
+    for (let i = 1; i <= 5; i++) {
+
+        const url =
+            `${BASE_URL}/${selectedMediaType}/${selectedMovieId}/recommendations?api_key=${API_KEY}&page=${i}`;
+
+        recPromises.push(fetch(url));
+    }
+
+    // Similar API
+    const similarPromises = [];
+
+    for (let i = 1; i <= 5; i++) {
+
+        const url =
+            `${BASE_URL}/${selectedMediaType}/${selectedMovieId}/similar?api_key=${API_KEY}&page=${i}`;
+
+        similarPromises.push(fetch(url));
+    }
+
+    // Discover API (fallback only)
+    const discoverPromises = [];
+
+    for (let i = 1; i <= 3; i++) {
+
+        const url =
+            `${BASE_URL}/discover/${selectedMediaType}?api_key=${API_KEY}`
+            + `&with_original_language=${originalLanguage}`
+            + `&with_genres=${genreIds}`
+            + `&vote_average.gte=6`
+            + `&vote_count.gte=100`
+            + `&sort_by=vote_average.desc`
+            + `&page=${i}`;
+
+        discoverPromises.push(fetch(url));
+    }
+
+    // =========================
+    // FETCH ALL TOGETHER
+    // =========================
+    const [
+        recResponses,
+        similarResponses,
+        discoverResponses
+    ] = await Promise.all([
+
+        Promise.all(recPromises),
+
+        Promise.all(similarPromises),
+
+        Promise.all(discoverPromises)
+    ]);
+
+    // =========================
+    // CONVERT TO JSON
+    // =========================
+    const recResults =
+        await Promise.all(
+            recResponses.map(r => r.json())
+        );
+
+    const similarResults =
+        await Promise.all(
+            similarResponses.map(r => r.json())
+        );
+
+    const discoverResults =
         await Promise.all(
             discoverResponses.map(r => r.json())
         );
 
-    // Flatten all movie arrays
+    // =========================
+    // ADD SOURCE SCORES
+    // =========================
+
+    // Strongest similarity
     const recMovies =
-        recResults.flatMap(r => r.results);
+        recResults.flatMap(r =>
+            r.results.map(movie => ({
+                ...movie,
+                sourceScore: 500
+            }))
+        );
 
+    // Strong thematic similarity
     const similarMovies =
-        similarResults.flatMap(r => r.results);
+        similarResults.flatMap(r =>
+            r.results.map(movie => ({
+                ...movie,
+                sourceScore: 400
+            }))
+        );
 
+    // Broad fallback recommendations
     const discoverMovies =
-        discoverResults.flatMap(r => r.results);
+        discoverResults.flatMap(r =>
+            r.results.map(movie => ({
+                ...movie,
+                sourceScore: 50
+            }))
+        );
 
-    // Combine all
+    // =========================
+    // COMBINE RESULTS
+    // =========================
+
     let combined = [
 
         ...recMovies,
 
-        ...similarMovies,
-
-        ...discoverMovies
+        ...similarMovies
     ];
 
-    // Prioritize same-language content
-    combined.sort((a, b) => {
+    // Only use discover if needed
+    if (combined.length < 40) {
 
-        const aLang =
-            a.original_language === originalLanguage ? 1 : 0;
+        combined.push(...discoverMovies);
+    }
 
-        const bLang =
-            b.original_language === originalLanguage ? 1 : 0;
+    // =========================
+    // REMOVE DUPLICATES
+    // =========================
 
-        return bLang - aLang;
-    });
-
-    // Remove duplicates
-    const uniqueMovies = combined.filter(
+    combined = combined.filter(
 
         (movie, index, self) =>
 
@@ -434,10 +548,66 @@ async function getMovieRecommendations() {
             )
     );
 
-    // Display ALL recommendations
-    displayRecommendations(uniqueMovies);
-}
+    // =========================
+    // SMART SCORING SYSTEM
+    // =========================
 
+    combined.forEach(movie => {
+
+        movie.finalScore = movie.sourceScore || 0;
+
+        // Same language boost
+        if (movie.original_language === originalLanguage) {
+
+            movie.finalScore += 250;
+        }
+
+        // Rating boost
+        movie.finalScore +=
+            movie.vote_average * 18;
+
+        // Popularity boost
+        movie.finalScore +=
+            movie.popularity * 0.12;
+
+        // Vote count reliability
+        movie.finalScore +=
+            Math.log10(movie.vote_count + 1) * 25;
+
+        // Genre overlap boost
+        let overlap = 0;
+
+        movie.genre_ids.forEach(id => {
+
+            if (item.genres.some(g => g.id === id)) {
+
+                overlap++;
+            }
+        });
+
+        movie.finalScore += overlap * 50;
+
+        // Penalize weak-rated content
+        if (movie.vote_average < 5.5) {
+
+            movie.finalScore -= 100;
+        }
+    });
+
+    // =========================
+    // FINAL SORTING
+    // =========================
+
+    combined.sort(
+        (a, b) => b.finalScore - a.finalScore
+    );
+
+    // =========================
+    // DISPLAY RESULTS
+    // =========================
+
+    displayRecommendations(combined);
+}
 
 // Display selected item
 function displaySelectedMovie(movie) {
