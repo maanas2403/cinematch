@@ -525,7 +525,7 @@ async function getMovieRecommendations() {
             })
         );
 
-    // =========================
+   // =========================
 // SMART SCORING
 // =========================
 
@@ -567,7 +567,7 @@ detailedMovies.forEach(movie => {
                 selectedYear - movieYear
             );
 
-        // Hindi focuses strongly on era
+        // Hindi strongly era-based
         if (isHindi) {
 
             if (diff === 0) {
@@ -588,12 +588,12 @@ detailedMovies.forEach(movie => {
 
             } else if (diff >= 20) {
 
-                movie.finalScore -= 100;
+                movie.finalScore -= 140;
             }
 
         } else {
 
-            // Hollywood less dependent on year
+            // Hollywood less year dependent
             if (diff === 0) {
 
                 movie.finalScore += 100;
@@ -701,7 +701,7 @@ detailedMovies.forEach(movie => {
 
                 if (exists) {
 
-                    // Lead actor importance
+                    // Lead actor weighting
                     if (index === 0) {
 
                         castScore += 450;
@@ -722,8 +722,39 @@ detailedMovies.forEach(movie => {
             }
         );
 
+        // =========================
+        // SAME-ERA BOOST
+        // =========================
+
+        if (isHindi && movieYear) {
+
+            const eraDifference =
+                Math.abs(
+                    movieYear - selectedYear
+                );
+
+            // Same era = massive boost
+            if (eraDifference <= 5) {
+
+                castScore *= 3.0;
+
+            } else if (eraDifference <= 10) {
+
+                castScore *= 2.0;
+
+            } else if (eraDifference <= 15) {
+
+                castScore *= 1.0;
+
+            // Different era penalty
+            } else {
+
+                castScore *= 0.2;
+            }
+        }
+
         // Bollywood heavily favors cast
-        // Hollywood only moderate
+        // Hollywood moderate cast focus
         movie.finalScore +=
             castScore * (
                 isHindi
@@ -762,12 +793,13 @@ detailedMovies.forEach(movie => {
     // POPULARITY
     // =========================
 
-    // Hollywood popularity matters more
-    // Bollywood popularity less important
+    // Bollywood popularity is unreliable
+    // because modern films dominate TMDB
+
     movie.finalScore +=
         movie.popularity * (
             isHindi
-                ? 0.05
+                ? 0.015
                 : 0.15
         );
 
@@ -790,21 +822,19 @@ detailedMovies.forEach(movie => {
     }
 
     // =========================
-    // EXTRA BOLLYWOOD BOOST
-    // SAME-ERA CAST FILMS
+    // EXTRA HINDI SAME-ERA BOOST
     // =========================
 
-    if (isHindi) {
+    if (isHindi && movieYear) {
 
         const sameEra =
-            movieYear &&
             Math.abs(
                 movieYear - selectedYear
             ) <= 10;
 
         if (sameEra) {
 
-            movie.finalScore += 180;
+            movie.finalScore += 220;
         }
     }
 });
