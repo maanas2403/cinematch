@@ -213,26 +213,45 @@ button {
     padding-top: 20px; /* Make content scrollable */
 }
 #modeToggle {
+
     position: fixed;
+
     bottom: 20px;
+
     right: 20px;
+
     z-index: 999;
+
     border: none;
-    border-radius: 20px; /* Rounded button */
-    padding: 10px 15px;
+
+    background: transparent;
+
+    font-size: 32px;
+
     cursor: pointer;
-    transition: background-color 0.3s; /* Smooth transition */
+
+    transition:
+        transform 0.2s ease,
+        opacity 0.2s ease;
+
+    padding: 0;
 }
-.light-mode #modeToggle,.light-mode button{
-    background-color: black; /* Button color */
-    color: white;
+
+/* Hover effect */
+
+#modeToggle:hover {
+
+    transform: scale(1.15);
+
+    opacity: 0.8;
 }
-.dark-mode #modeToggle,.dark-mode button {
-    background-color: white; /* Button color */
-    color: black;
-}
-#modeToggle:hover,button:hover {
-    background-color: grey; /* Darker shade on hover */
+
+/* Remove old button backgrounds */
+
+.light-mode #modeToggle,
+.dark-mode #modeToggle {
+
+    background: transparent;
 }
 @media (max-width: 768px) {
     .modal-content {
