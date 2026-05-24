@@ -376,59 +376,121 @@ async function getMovieRecommendations() {
     // SMART SCORING
     // =========================
 
-    combined.forEach(movie => {
+combined.forEach(movie => {
 
-        movie.finalScore =
-            movie.sourceScore || 0;
+    movie.finalScore =
+        movie.sourceScore || 0;
 
-        // Same language boost
+    // =========================
+    // YEAR SIMILARITY BOOST
+    // =========================
+
+    const selectedYear =
+        item.release_date
+            ? parseInt(item.release_date.split('-')[0])
+            : item.first_air_date
+            ? parseInt(item.first_air_date.split('-')[0])
+            : null;
+
+    const movieYear =
+        movie.release_date
+            ? parseInt(movie.release_date.split('-')[0])
+            : movie.first_air_date
+            ? parseInt(movie.first_air_date.split('-')[0])
+            : null;
+
+    if (selectedYear && movieYear) {
+
+        const yearDifference =
+            Math.abs(selectedYear - movieYear);
+
+        // Same year
+        if (yearDifference === 0) {
+
+            movie.finalScore += 180;
+
+        // Within 2 years
+        } else if (yearDifference <= 2) {
+
+            movie.finalScore += 120;
+
+        // Within 5 years
+        } else if (yearDifference <= 5) {
+
+            movie.finalScore += 70;
+
+        // Penalize very far years
+        } else if (yearDifference >= 15) {
+
+            movie.finalScore -= 60;
+        }
+    }
+
+    // =========================
+    // SAME LANGUAGE BOOST
+    // =========================
+
+    if (
+        movie.original_language ===
+        originalLanguage
+    ) {
+
+        movie.finalScore += 250;
+    }
+
+    // =========================
+    // RATING BOOST
+    // =========================
+
+    movie.finalScore +=
+        movie.vote_average * 18;
+
+    // =========================
+    // POPULARITY BOOST
+    // =========================
+
+    movie.finalScore +=
+        movie.popularity * 0.12;
+
+    // =========================
+    // VOTE COUNT RELIABILITY
+    // =========================
+
+    movie.finalScore +=
+        Math.log10(
+            movie.vote_count + 1
+        ) * 25;
+
+    // =========================
+    // GENRE OVERLAP BOOST
+    // =========================
+
+    let overlap = 0;
+
+    movie.genre_ids.forEach(id => {
+
         if (
-            movie.original_language ===
-            originalLanguage
+            item.genres.some(
+                g => g.id === id
+            )
         ) {
 
-            movie.finalScore += 250;
-        }
-
-        // Rating boost
-        movie.finalScore +=
-            movie.vote_average * 18;
-
-        // Popularity boost
-        movie.finalScore +=
-            movie.popularity * 0.12;
-
-        // Vote count reliability
-        movie.finalScore +=
-            Math.log10(
-                movie.vote_count + 1
-            ) * 25;
-
-        // Genre overlap boost
-        let overlap = 0;
-
-        movie.genre_ids.forEach(id => {
-
-            if (
-                item.genres.some(
-                    g => g.id === id
-                )
-            ) {
-
-                overlap++;
-            }
-        });
-
-        movie.finalScore +=
-            overlap * 50;
-
-        // Penalize weak films
-        if (movie.vote_average < 5.5) {
-
-            movie.finalScore -= 100;
+            overlap++;
         }
     });
 
+    movie.finalScore +=
+        overlap * 50;
+
+    // =========================
+    // PENALIZE WEAK MOVIES
+    // =========================
+
+    if (movie.vote_average < 5.5) {
+
+        movie.finalScore -= 100;
+    }
+});
     // =========================
     // SORT BY SCORE
     // =========================
