@@ -660,7 +660,38 @@ async function getMovieRecommendations() {
                 }
             );
         }
-
+        // =========================
+        // DIRECTOR MATCH
+        // =========================
+        
+        let sameDirector = false;
+        
+        const selectedDirector =
+            item.credits.crew.find(
+        
+                person =>
+                    person.job === "Director"
+            );
+        
+        const movieDirector =
+            movie.credits &&
+            movie.credits.crew
+                ? movie.credits.crew.find(
+        
+                    person =>
+                        person.job === "Director"
+                )
+                : null;
+        
+        if (
+            selectedDirector &&
+            movieDirector &&
+            selectedDirector.id ===
+            movieDirector.id
+        ) {
+        
+            sameDirector = true;
+        }
         // =========================
         // HINDI LOGIC
         // =========================
@@ -734,6 +765,18 @@ async function getMovieRecommendations() {
             // Popularity low importance
             movie.finalScore +=
                 movie.popularity * 0.01;
+            if (sameDirector) {
+
+    // Same era + same director
+            if (yearDifference <= 5) {
+        
+                movie.finalScore += 3500;
+        
+            } else {
+        
+                movie.finalScore += 1200;
+    }
+}
         }
 
        // =========================
@@ -766,6 +809,10 @@ else {
     if (overlap === 0) {
 
         movie.finalScore -= 300;
+    }
+    if (sameDirector) {
+
+    movie.finalScore += 700;
     }
 }
         // =========================
@@ -1119,8 +1166,8 @@ async function showMovieDetails(movieId) {
         "director"
     ).innerText =
         director
-            ? `${director.name}`
-            : "N/A";
+            ? ` ${director.name}`
+            : " N/A";
     document.getElementById(
         'releaseDate'
     ).innerText =
