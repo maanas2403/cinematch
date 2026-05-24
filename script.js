@@ -393,11 +393,9 @@ async function getMovieRecommendations() {
 
     if (!selectedMovieId || !selectedMediaType) return;
 
-    // =========================
-    // FETCH SELECTED MOVIE/SHOW
-    // =========================
+    // Fetch selected movie/show details
     const detailsUrl =
-        `${BASE_URL}/${selectedMediaType}/${selectedMovieId}?api_key=${API_KEY}`;
+        ${BASE_URL}/${selectedMediaType}/${selectedMovieId}?api_key=${API_KEY};
 
     const detailsResponse = await fetch(detailsUrl);
 
@@ -410,52 +408,52 @@ async function getMovieRecommendations() {
     const genreIds =
         item.genres.map(g => g.id).join(',');
 
-    // =========================
-    // FETCH RECOMMENDATIONS
-    // =========================
-
-    // Recommendations API
+    // -----------------------------
+    // RECOMMENDATIONS API
+    // -----------------------------
     const recPromises = [];
 
     for (let i = 1; i <= 5; i++) {
 
         const url =
-            `${BASE_URL}/${selectedMediaType}/${selectedMovieId}/recommendations?api_key=${API_KEY}&page=${i}`;
+            ${BASE_URL}/${selectedMediaType}/${selectedMovieId}/recommendations?api_key=${API_KEY}&page=${i};
 
         recPromises.push(fetch(url));
     }
 
-    // Similar API
+    // -----------------------------
+    // SIMILAR API
+    // -----------------------------
     const similarPromises = [];
 
     for (let i = 1; i <= 5; i++) {
 
         const url =
-            `${BASE_URL}/${selectedMediaType}/${selectedMovieId}/similar?api_key=${API_KEY}&page=${i}`;
+            ${BASE_URL}/${selectedMediaType}/${selectedMovieId}/similar?api_key=${API_KEY}&page=${i};
 
         similarPromises.push(fetch(url));
     }
 
-    // Discover API (fallback only)
+    // -----------------------------
+    // DISCOVER API
+    // -----------------------------
     const discoverPromises = [];
 
-    for (let i = 1; i <= 3; i++) {
+    for (let i = 1; i <= 5; i++) {
 
         const url =
-            `${BASE_URL}/discover/${selectedMediaType}?api_key=${API_KEY}`
-            + `&with_original_language=${originalLanguage}`
-            + `&with_genres=${genreIds}`
-            + `&vote_average.gte=6`
-            + `&vote_count.gte=100`
-            + `&sort_by=vote_average.desc`
-            + `&page=${i}`;
+            ${BASE_URL}/discover/${selectedMediaType}?api_key=${API_KEY}
+            + &with_original_language=${originalLanguage}
+            + &with_genres=${genreIds}
+            + &vote_average.gte=6
+            + &vote_count.gte=100
+            + &sort_by=popularity.desc
+            + &page=${i};
 
         discoverPromises.push(fetch(url));
     }
 
-    // =========================
-    // FETCH ALL TOGETHER
-    // =========================
+    // Fetch everything together
     const [
         recResponses,
         similarResponses,
@@ -469,9 +467,7 @@ async function getMovieRecommendations() {
         Promise.all(discoverPromises)
     ]);
 
-    // =========================
-    // CONVERT TO JSON
-    // =========================
+    // Convert to JSON
     const recResults =
         await Promise.all(
             recResponses.map(r => r.json())
@@ -487,59 +483,40 @@ async function getMovieRecommendations() {
             discoverResponses.map(r => r.json())
         );
 
-    // =========================
-    // ADD SOURCE SCORES
-    // =========================
-
-    // Strongest similarity
+    // Flatten all movie arrays
     const recMovies =
-        recResults.flatMap(r =>
-            r.results.map(movie => ({
-                ...movie,
-                sourceScore: 500
-            }))
-        );
+        recResults.flatMap(r => r.results);
 
-    // Strong thematic similarity
     const similarMovies =
-        similarResults.flatMap(r =>
-            r.results.map(movie => ({
-                ...movie,
-                sourceScore: 400
-            }))
-        );
+        similarResults.flatMap(r => r.results);
 
-    // Broad fallback recommendations
     const discoverMovies =
-        discoverResults.flatMap(r =>
-            r.results.map(movie => ({
-                ...movie,
-                sourceScore: 50
-            }))
-        );
+        discoverResults.flatMap(r => r.results);
 
-    // =========================
-    // COMBINE RESULTS
-    // =========================
-
+    // Combine all
     let combined = [
 
         ...recMovies,
 
-        ...similarMovies
+        ...similarMovies,
+
+        ...discoverMovies
     ];
 
-    // Only use discover if needed
-    if (combined.length < 40) {
+    // Prioritize same-language content
+    combined.sort((a, b) => {
 
-        combined.push(...discoverMovies);
-    }
+        const aLang =
+            a.original_language === originalLanguage ? 1 : 0;
 
-    // =========================
-    // REMOVE DUPLICATES
-    // =========================
+        const bLang =
+            b.original_language === originalLanguage ? 1 : 0;
 
-    combined = combined.filter(
+        return bLang - aLang;
+    });
+
+    // Remove duplicates
+    const uniqueMovies = combined.filter(
 
         (movie, index, self) =>
 
@@ -548,65 +525,8 @@ async function getMovieRecommendations() {
             )
     );
 
-    // =========================
-    // SMART SCORING SYSTEM
-    // =========================
-
-    combined.forEach(movie => {
-
-        movie.finalScore = movie.sourceScore || 0;
-
-        // Same language boost
-        if (movie.original_language === originalLanguage) {
-
-            movie.finalScore += 250;
-        }
-
-        // Rating boost
-        movie.finalScore +=
-            movie.vote_average * 18;
-
-        // Popularity boost
-        movie.finalScore +=
-            movie.popularity * 0.12;
-
-        // Vote count reliability
-        movie.finalScore +=
-            Math.log10(movie.vote_count + 1) * 25;
-
-        // Genre overlap boost
-        let overlap = 0;
-
-        movie.genre_ids.forEach(id => {
-
-            if (item.genres.some(g => g.id === id)) {
-
-                overlap++;
-            }
-        });
-
-        movie.finalScore += overlap * 50;
-
-        // Penalize weak-rated content
-        if (movie.vote_average < 5.5) {
-
-            movie.finalScore -= 100;
-        }
-    });
-
-    // =========================
-    // FINAL SORTING
-    // =========================
-
-    combined.sort(
-        (a, b) => b.finalScore - a.finalScore
-    );
-
-    // =========================
-    // DISPLAY RESULTS
-    // =========================
-
-    displayRecommendations(combined);
+    // Display ALL recommendations
+    displayRecommendations(uniqueMovies);
 }
 
 // Display selected item
