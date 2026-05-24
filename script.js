@@ -204,6 +204,10 @@ async function getMovieRecommendations() {
 // FETCH SELECTED MOVIE/SHOW
 // =========================
 
+// =========================
+// FETCH SELECTED MOVIE/SHOW
+// =========================
+
 const detailsUrl =
     `${BASE_URL}/${selectedMediaType}/${selectedMovieId}?api_key=${API_KEY}&append_to_response=credits`;
 
@@ -217,6 +221,22 @@ displaySelectedMovie(item);
 
 const originalLanguage =
     item.original_language;
+
+// =========================
+// YEAR + DECADE
+// =========================
+
+const selectedYear =
+    item.release_date
+        ? parseInt(item.release_date.split('-')[0])
+        : item.first_air_date
+        ? parseInt(item.first_air_date.split('-')[0])
+        : null;
+
+const selectedDecade =
+    selectedYear
+        ? Math.floor(selectedYear / 10) * 10
+        : null;
 
 // =========================
 // RECOMMENDATIONS API
@@ -247,17 +267,37 @@ for (let i = 1; i <= 5; i++) {
 }
 
 // =========================
+// FETCH CAST FILMOGRAPHY
+// =========================
+
+const topCast =
+    item.credits.cast.slice(0, 5);
+
+const castMoviePromises = [];
+
+topCast.forEach(actor => {
+
+    const url =
+        `${BASE_URL}/person/${actor.id}/${selectedMediaType}_credits?api_key=${API_KEY}`;
+
+    castMoviePromises.push(fetch(url));
+});
+
+// =========================
 // FETCH EVERYTHING
 // =========================
 
 const [
     recResponses,
-    similarResponses
+    similarResponses,
+    castResponses
 ] = await Promise.all([
 
     Promise.all(recPromises),
 
-    Promise.all(similarPromises)
+    Promise.all(similarPromises),
+
+    Promise.all(castMoviePromises)
 ]);
 
 // =========================
@@ -274,8 +314,13 @@ const similarResults =
         similarResponses.map(r => r.json())
     );
 
+const castResults =
+    await Promise.all(
+        castResponses.map(r => r.json())
+    );
+
 // =========================
-// ADD SOURCE SCORES
+// SOURCE SCORES
 // =========================
 
 const recMovies =
@@ -300,6 +345,17 @@ const similarMovies =
         }))
     );
 
+const castMovies =
+    castResults.flatMap(r =>
+
+        (r.cast || []).map(movie => ({
+
+            ...movie,
+
+            sourceScore: 250
+        }))
+    );
+
 // =========================
 // COMBINE RESULTS
 // =========================
@@ -308,7 +364,9 @@ let combined = [
 
     ...recMovies,
 
-    ...similarMovies
+    ...similarMovies,
+
+    ...castMovies
 ];
 
 // =========================
@@ -325,13 +383,58 @@ combined = combined.filter(
 );
 
 // =========================
+// REMOVE INVALID RESULTS
+// =========================
+
+combined = combined.filter(movie => {
+
+    // Remove selected movie
+    if (movie.id === selectedMovieId) {
+
+        return false;
+    }
+
+    // Remove low quality entries
+    if (movie.vote_count < 80) {
+
+        return false;
+    }
+
+    // Remove adult titles
+    if (movie.adult) {
+
+        return false;
+    }
+
+    // Animation filtering
+    const selectedIsAnimation =
+        item.genres.some(
+            g => g.name === 'Animation'
+        );
+
+    const movieIsAnimation =
+        movie.genre_ids &&
+        movie.genre_ids.includes(16);
+
+    if (
+        !selectedIsAnimation &&
+        movieIsAnimation
+    ) {
+
+        return false;
+    }
+
+    return true;
+});
+
+// =========================
 // FETCH DETAILS + CREDITS
 // =========================
 
 const detailedMovies =
     await Promise.all(
 
-        combined.slice(0, 50).map(async movie => {
+        combined.slice(0, 60).map(async movie => {
 
             try {
 
@@ -368,15 +471,8 @@ detailedMovies.forEach(movie => {
         movie.sourceScore || 0;
 
     // =========================
-    // YEAR SIMILARITY BOOST
+    // YEAR MATCHING
     // =========================
-
-    const selectedYear =
-        item.release_date
-            ? parseInt(item.release_date.split('-')[0])
-            : item.first_air_date
-            ? parseInt(item.first_air_date.split('-')[0])
-            : null;
 
     const movieYear =
         movie.release_date
@@ -392,24 +488,61 @@ detailedMovies.forEach(movie => {
 
         if (yearDifference === 0) {
 
-            movie.finalScore += 180;
+            movie.finalScore += 220;
 
         } else if (yearDifference <= 2) {
 
-            movie.finalScore += 120;
+            movie.finalScore += 160;
 
         } else if (yearDifference <= 5) {
 
-            movie.finalScore += 70;
+            movie.finalScore += 100;
 
         } else if (yearDifference >= 15) {
 
-            movie.finalScore -= 60;
+            movie.finalScore -= 100;
         }
     }
 
     // =========================
-    // SAME LANGUAGE BOOST
+    // DECADE MATCHING
+    // =========================
+
+    const movieDecade =
+        movieYear
+            ? Math.floor(movieYear / 10) * 10
+            : null;
+
+    if (
+        selectedDecade &&
+        movieDecade
+    ) {
+
+        if (
+            movieDecade ===
+            selectedDecade
+        ) {
+
+            movie.finalScore += 250;
+
+        } else if (
+
+            Math.abs(
+                movieDecade -
+                selectedDecade
+            ) === 10
+        ) {
+
+            movie.finalScore += 80;
+
+        } else {
+
+            movie.finalScore -= 70;
+        }
+    }
+
+    // =========================
+    // LANGUAGE MATCHING
     // =========================
 
     if (
@@ -432,10 +565,10 @@ detailedMovies.forEach(movie => {
     // =========================
 
     movie.finalScore +=
-        movie.popularity * 0.12;
+        movie.popularity * 0.10;
 
     // =========================
-    // VOTE COUNT RELIABILITY
+    // VOTE RELIABILITY
     // =========================
 
     movie.finalScore +=
@@ -444,7 +577,7 @@ detailedMovies.forEach(movie => {
         ) * 25;
 
     // =========================
-    // GENRE OVERLAP BOOST
+    // GENRE MATCHING
     // =========================
 
     let genreOverlap = 0;
@@ -462,19 +595,19 @@ detailedMovies.forEach(movie => {
     });
 
     movie.finalScore +=
-        genreOverlap * 80;
+        genreOverlap * 90;
 
-    // Perfect genre match bonus
+    // Perfect genre bonus
     if (
         genreOverlap >=
         item.genres.length - 1
     ) {
 
-        movie.finalScore += 150;
+        movie.finalScore += 180;
     }
 
     // =========================
-    // CAST MATCHING BOOST
+    // CAST MATCHING
     // =========================
 
     if (
@@ -507,11 +640,11 @@ detailedMovies.forEach(movie => {
         });
 
         movie.finalScore +=
-            castOverlap * 120;
+            castOverlap * 140;
 
         if (castOverlap >= 3) {
 
-            movie.finalScore += 200;
+            movie.finalScore += 250;
         }
     }
 
@@ -521,12 +654,12 @@ detailedMovies.forEach(movie => {
 
     if (movie.vote_average < 5.5) {
 
-        movie.finalScore -= 100;
+        movie.finalScore -= 120;
     }
 });
 
 // =========================
-// SORT BY SCORE
+// SORT RESULTS
 // =========================
 
 detailedMovies.sort(
