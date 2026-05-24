@@ -200,480 +200,527 @@ async function getMovieRecommendations() {
 
     if (!selectedMovieId || !selectedMediaType) return;
 
- // =========================
-// FETCH SELECTED MOVIE/SHOW
-// =========================
+    // =========================
+    // FETCH SELECTED TITLE
+    // =========================
 
-// =========================
-// FETCH SELECTED MOVIE/SHOW
-// =========================
+    const detailsUrl =
+        `${BASE_URL}/${selectedMediaType}/${selectedMovieId}?api_key=${API_KEY}&append_to_response=credits`;
 
-const detailsUrl =
-    `${BASE_URL}/${selectedMediaType}/${selectedMovieId}?api_key=${API_KEY}&append_to_response=credits`;
+    const detailsResponse =
+        await fetch(detailsUrl);
 
-const detailsResponse =
-    await fetch(detailsUrl);
+    const item =
+        await detailsResponse.json();
 
-const item =
-    await detailsResponse.json();
+    displaySelectedMovie(item);
 
-displaySelectedMovie(item);
+    // =========================
+    // BASIC INFO
+    // =========================
 
-const originalLanguage =
-    item.original_language;
+    const originalLanguage =
+        item.original_language;
 
-// =========================
-// YEAR + DECADE
-// =========================
+    const selectedGenres =
+        item.genres.map(g => g.id);
 
-const selectedYear =
-    item.release_date
-        ? parseInt(item.release_date.split('-')[0])
-        : item.first_air_date
-        ? parseInt(item.first_air_date.split('-')[0])
-        : null;
+    const selectedYear =
+        item.release_date
+            ? parseInt(item.release_date.split('-')[0])
+            : item.first_air_date
+            ? parseInt(item.first_air_date.split('-')[0])
+            : 2000;
 
-const selectedDecade =
-    selectedYear
-        ? Math.floor(selectedYear / 10) * 10
-        : null;
+    const selectedDecade =
+        Math.floor(selectedYear / 10) * 10;
 
-// =========================
-// RECOMMENDATIONS API
-// =========================
+    const decadeStart =
+        selectedDecade - 5;
 
-const recPromises = [];
+    const decadeEnd =
+        selectedDecade + 5;
 
-for (let i = 1; i <= 5; i++) {
-
-    const url =
-        `${BASE_URL}/${selectedMediaType}/${selectedMovieId}/recommendations?api_key=${API_KEY}&page=${i}`;
-
-    recPromises.push(fetch(url));
-}
-
-// =========================
-// SIMILAR API
-// =========================
-
-const similarPromises = [];
-
-for (let i = 1; i <= 5; i++) {
-
-    const url =
-        `${BASE_URL}/${selectedMediaType}/${selectedMovieId}/similar?api_key=${API_KEY}&page=${i}`;
-
-    similarPromises.push(fetch(url));
-}
-
-// =========================
-// FETCH CAST FILMOGRAPHY
-// =========================
-
-const topCast =
-    item.credits.cast.slice(0, 5);
-
-const castMoviePromises = [];
-
-topCast.forEach(actor => {
-
-    const url =
-        `${BASE_URL}/person/${actor.id}/${selectedMediaType}_credits?api_key=${API_KEY}`;
-
-    castMoviePromises.push(fetch(url));
-});
-
-// =========================
-// FETCH EVERYTHING
-// =========================
-
-const [
-    recResponses,
-    similarResponses,
-    castResponses
-] = await Promise.all([
-
-    Promise.all(recPromises),
-
-    Promise.all(similarPromises),
-
-    Promise.all(castMoviePromises)
-]);
-
-// =========================
-// CONVERT TO JSON
-// =========================
-
-const recResults =
-    await Promise.all(
-        recResponses.map(r => r.json())
-    );
-
-const similarResults =
-    await Promise.all(
-        similarResponses.map(r => r.json())
-    );
-
-const castResults =
-    await Promise.all(
-        castResponses.map(r => r.json())
-    );
-
-// =========================
-// SOURCE SCORES
-// =========================
-
-const recMovies =
-    recResults.flatMap(r =>
-
-        r.results.map(movie => ({
-
-            ...movie,
-
-            sourceScore: 500
-        }))
-    );
-
-const similarMovies =
-    similarResults.flatMap(r =>
-
-        r.results.map(movie => ({
-
-            ...movie,
-
-            sourceScore: 400
-        }))
-    );
-
-const castMovies =
-    castResults.flatMap(r =>
-
-        (r.cast || []).map(movie => ({
-
-            ...movie,
-
-            sourceScore: 250
-        }))
-    );
-
-// =========================
-// COMBINE RESULTS
-// =========================
-
-let combined = [
-
-    ...recMovies,
-
-    ...similarMovies,
-
-    ...castMovies
-];
-
-// =========================
-// REMOVE DUPLICATES
-// =========================
-
-combined = combined.filter(
-
-    (movie, index, self) =>
-
-        index === self.findIndex(
-            m => m.id === movie.id
-        )
-);
-
-// =========================
-// REMOVE INVALID RESULTS
-// =========================
-
-combined = combined.filter(movie => {
-
-    // Remove selected movie
-    if (movie.id === selectedMovieId) {
-
-        return false;
-    }
-
-    // Remove low quality entries
-    if (movie.vote_count < 80) {
-
-        return false;
-    }
-
-    // Remove adult titles
-    if (movie.adult) {
-
-        return false;
-    }
-
-    // Animation filtering
     const selectedIsAnimation =
         item.genres.some(
             g => g.name === 'Animation'
         );
 
-    const movieIsAnimation =
-        movie.genre_ids &&
-        movie.genre_ids.includes(16);
+    // =========================
+    // RECOMMENDATIONS API
+    // =========================
 
-    if (
-        !selectedIsAnimation &&
-        movieIsAnimation
-    ) {
+    const recPromises = [];
 
-        return false;
+    for (let i = 1; i <= 5; i++) {
+
+        recPromises.push(
+
+            fetch(
+                `${BASE_URL}/${selectedMediaType}/${selectedMovieId}/recommendations?api_key=${API_KEY}&page=${i}`
+            )
+        );
     }
 
-    return true;
-});
+    // =========================
+    // SIMILAR API
+    // =========================
 
-// =========================
-// FETCH DETAILS + CREDITS
-// =========================
+    const similarPromises = [];
 
-const detailedMovies =
-    await Promise.all(
+    for (let i = 1; i <= 5; i++) {
 
-        combined.slice(0, 60).map(async movie => {
+        similarPromises.push(
 
-            try {
+            fetch(
+                `${BASE_URL}/${selectedMediaType}/${selectedMovieId}/similar?api_key=${API_KEY}&page=${i}`
+            )
+        );
+    }
 
-                const detailsFetch =
-                    await fetch(
+    // =========================
+    // SAME-DECADE + SAME-GENRE
+    // =========================
 
-                        `${BASE_URL}/${selectedMediaType}/${movie.id}?api_key=${API_KEY}&append_to_response=credits`
-                    );
+    const discoverPromises = [];
 
-                const details =
-                    await detailsFetch.json();
+    for (let i = 1; i <= 3; i++) {
 
-                return {
+        discoverPromises.push(
 
-                    ...movie,
+            fetch(
 
-                    credits: details.credits
-                };
+                `${BASE_URL}/discover/${selectedMediaType}?api_key=${API_KEY}`
+                + `&with_genres=${selectedGenres.join(',')}`
+                + `&with_original_language=${originalLanguage}`
+                + `&vote_count.gte=100`
+                + `&sort_by=popularity.desc`
+                + `&page=${i}`
+                + (
+                    selectedMediaType === 'movie'
+                        ? `&primary_release_date.gte=${decadeStart}-01-01`
+                        + `&primary_release_date.lte=${decadeEnd}-12-31`
+                        : `&first_air_date.gte=${decadeStart}-01-01`
+                        + `&first_air_date.lte=${decadeEnd}-12-31`
+                )
+            )
+        );
+    }
 
-            } catch {
+    // =========================
+    // CAST FILMOGRAPHY
+    // =========================
 
-                return movie;
-            }
-        })
+    const topCast =
+        item.credits.cast.slice(0, 5);
+
+    const castPromises = [];
+
+    topCast.forEach(actor => {
+
+        castPromises.push(
+
+            fetch(
+                `${BASE_URL}/person/${actor.id}/${selectedMediaType}_credits?api_key=${API_KEY}`
+            )
+        );
+    });
+
+    // =========================
+    // FETCH EVERYTHING
+    // =========================
+
+    const [
+
+        recResponses,
+        similarResponses,
+        discoverResponses,
+        castResponses
+
+    ] = await Promise.all([
+
+        Promise.all(recPromises),
+
+        Promise.all(similarPromises),
+
+        Promise.all(discoverPromises),
+
+        Promise.all(castPromises)
+    ]);
+
+    // =========================
+    // CONVERT TO JSON
+    // =========================
+
+    const recResults =
+        await Promise.all(
+            recResponses.map(r => r.json())
+        );
+
+    const similarResults =
+        await Promise.all(
+            similarResponses.map(r => r.json())
+        );
+
+    const discoverResults =
+        await Promise.all(
+            discoverResponses.map(r => r.json())
+        );
+
+    const castResults =
+        await Promise.all(
+            castResponses.map(r => r.json())
+        );
+
+    // =========================
+    // SOURCE SCORING
+    // =========================
+
+    const recMovies =
+        recResults.flatMap(r =>
+
+            r.results.map(movie => ({
+
+                ...movie,
+
+                sourceScore: 500
+            }))
+        );
+
+    const similarMovies =
+        similarResults.flatMap(r =>
+
+            r.results.map(movie => ({
+
+                ...movie,
+
+                sourceScore: 420
+            }))
+        );
+
+    const discoverMovies =
+        discoverResults.flatMap(r =>
+
+            r.results.map(movie => ({
+
+                ...movie,
+
+                sourceScore: 320
+            }))
+        );
+
+    const castMovies =
+        castResults.flatMap(r =>
+
+            (r.cast || []).map(movie => ({
+
+                ...movie,
+
+                sourceScore: 260
+            }))
+        );
+
+    // =========================
+    // COMBINE
+    // =========================
+
+    let combined = [
+
+        ...recMovies,
+        ...similarMovies,
+        ...discoverMovies,
+        ...castMovies
+    ];
+
+    // =========================
+    // REMOVE DUPLICATES
+    // =========================
+
+    combined = combined.filter(
+
+        (movie, index, self) =>
+
+            index === self.findIndex(
+                m => m.id === movie.id
+            )
     );
 
-// =========================
-// SMART SCORING
-// =========================
-
-detailedMovies.forEach(movie => {
-
-    movie.finalScore =
-        movie.sourceScore || 0;
-
     // =========================
-    // YEAR MATCHING
+    // HARD FILTERS
     // =========================
 
-    const movieYear =
-        movie.release_date
-            ? parseInt(movie.release_date.split('-')[0])
-            : movie.first_air_date
-            ? parseInt(movie.first_air_date.split('-')[0])
-            : null;
+    combined = combined.filter(movie => {
 
-    if (selectedYear && movieYear) {
+        // Remove selected title
+        if (movie.id === selectedMovieId) {
 
-        const yearDifference =
-            Math.abs(selectedYear - movieYear);
-
-        if (yearDifference === 0) {
-
-            movie.finalScore += 220;
-
-        } else if (yearDifference <= 2) {
-
-            movie.finalScore += 160;
-
-        } else if (yearDifference <= 5) {
-
-            movie.finalScore += 100;
-
-        } else if (yearDifference >= 15) {
-
-            movie.finalScore -= 100;
+            return false;
         }
-    }
+
+        // Remove missing posters
+        if (!movie.poster_path) {
+
+            return false;
+        }
+
+        // Remove weak entries
+        if (movie.vote_count < 100) {
+
+            return false;
+        }
+
+        // Remove adult
+        if (movie.adult) {
+
+            return false;
+        }
+
+        // Remove animation mismatch
+        const movieIsAnimation =
+            movie.genre_ids &&
+            movie.genre_ids.includes(16);
+
+        if (
+            !selectedIsAnimation &&
+            movieIsAnimation
+        ) {
+
+            return false;
+        }
+
+        return true;
+    });
 
     // =========================
-    // DECADE MATCHING
+    // FETCH DETAILS + CREDITS
     // =========================
 
-    const movieDecade =
-        movieYear
-            ? Math.floor(movieYear / 10) * 10
-            : null;
+    const detailedMovies =
+        await Promise.all(
 
-    if (
-        selectedDecade &&
-        movieDecade
-    ) {
+            combined.slice(0, 70).map(async movie => {
+
+                try {
+
+                    const detailsFetch =
+                        await fetch(
+
+                            `${BASE_URL}/${selectedMediaType}/${movie.id}?api_key=${API_KEY}&append_to_response=credits`
+                        );
+
+                    const details =
+                        await detailsFetch.json();
+
+                    return {
+
+                        ...movie,
+
+                        credits: details.credits
+                    };
+
+                } catch {
+
+                    return movie;
+                }
+            })
+        );
+
+    // =========================
+    // SMART SCORING
+    // =========================
+
+    detailedMovies.forEach(movie => {
+
+        movie.finalScore =
+            movie.sourceScore || 0;
+
+        // =========================
+        // YEAR
+        // =========================
+
+        const movieYear =
+            movie.release_date
+                ? parseInt(movie.release_date.split('-')[0])
+                : movie.first_air_date
+                ? parseInt(movie.first_air_date.split('-')[0])
+                : null;
+
+        if (movieYear) {
+
+            const diff =
+                Math.abs(
+                    selectedYear - movieYear
+                );
+
+            if (diff === 0) {
+
+                movie.finalScore += 220;
+
+            } else if (diff <= 2) {
+
+                movie.finalScore += 160;
+
+            } else if (diff <= 5) {
+
+                movie.finalScore += 100;
+
+            } else if (diff >= 15) {
+
+                movie.finalScore -= 80;
+            }
+        }
+
+        // =========================
+        // DECADE
+        // =========================
+
+        const movieDecade =
+            movieYear
+                ? Math.floor(movieYear / 10) * 10
+                : null;
 
         if (
             movieDecade ===
             selectedDecade
         ) {
 
-            movie.finalScore += 250;
-
-        } else if (
-
-            Math.abs(
-                movieDecade -
-                selectedDecade
-            ) === 10
-        ) {
-
-            movie.finalScore += 80;
-
-        } else {
-
-            movie.finalScore -= 70;
+            movie.finalScore += 220;
         }
-    }
 
-    // =========================
-    // LANGUAGE MATCHING
-    // =========================
-
-    if (
-        movie.original_language ===
-        originalLanguage
-    ) {
-
-        movie.finalScore += 250;
-    }
-
-    // =========================
-    // RATING BOOST
-    // =========================
-
-    movie.finalScore +=
-        movie.vote_average * 18;
-
-    // =========================
-    // POPULARITY BOOST
-    // =========================
-
-    movie.finalScore +=
-        movie.popularity * 0.10;
-
-    // =========================
-    // VOTE RELIABILITY
-    // =========================
-
-    movie.finalScore +=
-        Math.log10(
-            movie.vote_count + 1
-        ) * 25;
-
-    // =========================
-    // GENRE MATCHING
-    // =========================
-
-    let genreOverlap = 0;
-
-    movie.genre_ids.forEach(id => {
+        // =========================
+        // LANGUAGE
+        // =========================
 
         if (
-            item.genres.some(
-                g => g.id === id
-            )
+            movie.original_language ===
+            originalLanguage
         ) {
 
-            genreOverlap++;
+            movie.finalScore += 250;
         }
-    });
 
-    movie.finalScore +=
-        genreOverlap * 90;
+        // =========================
+        // GENRE OVERLAP
+        // =========================
 
-    // Perfect genre bonus
-    if (
-        genreOverlap >=
-        item.genres.length - 1
-    ) {
+        let overlap = 0;
 
-        movie.finalScore += 180;
-    }
-
-    // =========================
-    // CAST MATCHING
-    // =========================
-
-    if (
-        movie.credits &&
-        movie.credits.cast &&
-        item.credits &&
-        item.credits.cast
-    ) {
-
-        const selectedCast =
-            item.credits.cast
-                .slice(0, 8)
-                .map(actor => actor.id);
-
-        const recommendationCast =
-            movie.credits.cast
-                .slice(0, 8)
-                .map(actor => actor.id);
-
-        let castOverlap = 0;
-
-        recommendationCast.forEach(actorId => {
+        movie.genre_ids.forEach(id => {
 
             if (
-                selectedCast.includes(actorId)
+                selectedGenres.includes(id)
             ) {
 
-                castOverlap++;
+                overlap++;
             }
         });
 
         movie.finalScore +=
-            castOverlap * 140;
+            overlap * 90;
 
-        if (castOverlap >= 3) {
+        // =========================
+        // PERFECT GENRE BONUS
+        // =========================
 
-            movie.finalScore += 250;
+        if (
+            overlap >=
+            selectedGenres.length - 1
+        ) {
+
+            movie.finalScore += 180;
         }
-    }
+
+        // =========================
+        // CAST OVERLAP
+        // =========================
+
+        if (
+            movie.credits &&
+            movie.credits.cast &&
+            item.credits &&
+            item.credits.cast
+        ) {
+
+            const selectedCast =
+                item.credits.cast
+                    .slice(0, 8)
+                    .map(actor => actor.id);
+
+            const movieCast =
+                movie.credits.cast
+                    .slice(0, 8)
+                    .map(actor => actor.id);
+
+            let castOverlap = 0;
+
+            movieCast.forEach(id => {
+
+                if (
+                    selectedCast.includes(id)
+                ) {
+
+                    castOverlap++;
+                }
+            });
+
+            movie.finalScore +=
+                castOverlap * 140;
+
+            if (castOverlap >= 3) {
+
+                movie.finalScore += 250;
+            }
+        }
+
+        // =========================
+        // RATING
+        // =========================
+
+        movie.finalScore +=
+            movie.vote_average * 18;
+
+        // =========================
+        // POPULARITY
+        // =========================
+
+        movie.finalScore +=
+            movie.popularity * 0.1;
+
+        // =========================
+        // VOTE RELIABILITY
+        // =========================
+
+        movie.finalScore +=
+            Math.log10(
+                movie.vote_count + 1
+            ) * 25;
+
+        // =========================
+        // PENALIZE WEAK FILMS
+        // =========================
+
+        if (movie.vote_average < 5.5) {
+
+            movie.finalScore -= 120;
+        }
+    });
 
     // =========================
-    // PENALIZE WEAK MOVIES
+    // FINAL SORT
     // =========================
 
-    if (movie.vote_average < 5.5) {
+    detailedMovies.sort(
 
-        movie.finalScore -= 120;
-    }
-});
+        (a, b) =>
 
-// =========================
-// SORT RESULTS
-// =========================
+            b.finalScore - a.finalScore
+    );
 
-detailedMovies.sort(
+    // =========================
+    // DISPLAY
+    // =========================
 
-    (a, b) =>
-
-        b.finalScore - a.finalScore
-);
-
-// =========================
-// DISPLAY RESULTS
-// =========================
-
-displayRecommendations(detailedMovies);
+    displayRecommendations(detailedMovies);
 }
 
 // =========================
